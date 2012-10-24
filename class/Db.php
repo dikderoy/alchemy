@@ -121,6 +121,7 @@ class Db
 			return self::$instance;
 		} elseif (self::$instance->hasDbParameters()) {
 			self::$instance->connect();
+			return self::$instance;
 		} else {
 			return self::$instance;
 		}
@@ -184,6 +185,11 @@ class Db
 		} catch (PDOException $e) {
 			throw new Exception($e->getMessage(), $e->getCode());
 		}
+	}
+
+	public static function lastInsertId()
+	{
+		return self::$instance->PDO->lastInsertId();
 	}
 
 	/**
@@ -507,7 +513,7 @@ class Db
 	public function fetchIntoObject($query, $obj)
 	{
 		$statement = $this->PDO->prepare($query);
-		$statement->setFetchMode(PDO::FETCH_INTO,$obj);
+		$statement->setFetchMode(PDO::FETCH_INTO, $obj);
 		return $statement->fetch();
 	}
 
