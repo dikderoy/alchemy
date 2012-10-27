@@ -145,6 +145,7 @@ class Db
 		$this->charSet = $charSet;
 		$this->login = $login;
 		$this->password = $password;
+		$this->options = $options;
 	}
 
 	public function hasDbParameters()
@@ -183,7 +184,7 @@ class Db
 			$this->PDO->setAttribute(PDO::ATTR_EMULATE_PREPARES, FALSE);
 			$this->PDO->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 		} catch (PDOException $e) {
-			throw new Exception($e->getMessage(), $e->getCode());
+			throw new DbException($e->getMessage(), $e->getCode(), $e);
 		}
 	}
 
@@ -235,7 +236,7 @@ class Db
 				array_push($this->values, $args);
 				$this->queryType = 'insert';
 			} else {
-				throw new Exception('SQL error - insert() - args is not an array');
+				throw new DbException('SQL error - insert() - args is not an array', E_RECOVERABLE_ERROR);
 			}
 		}
 
@@ -269,7 +270,7 @@ class Db
 			$this->what = array_keys($args);
 			$this->values = $args;
 		} else {
-			throw new Exception('SQL error - update - set() - args is not an array');
+			throw new DbException('SQL error - update - set() - args is not an array', E_RECOVERABLE_ERROR);
 		}
 
 		return $this;
@@ -393,8 +394,8 @@ class Db
 		//sorting cols alphabetically
 		sort($this->what);
 		//enclose cols and table names in backquots
-		$this->what = array_map('backquoEnclose', $this->what);
-		$this->tables = array_map('backquoEnclose', $this->tables);
+		$this->what = array_map(array(__CLASS__,'backquoEnclose'), $this->what);
+		$this->tables = array_map(array(__CLASS__,'backquoEnclose'), $this->tables);
 
 		try {
 			switch ($this->queryType) {
@@ -418,9 +419,8 @@ class Db
 								ksort($row);
 								//make keys like ":key"
 								if (!$error) {
-									$callback = 'attachKeyColon';
 									$vals = array();
-									array_walk($row, $callback, array(&$vals));
+									array_walk($row, array(__CLASS__, 'attachKeyColon'), array(&$vals));
 									array_push($this->readyValueSet, $vals);
 								} else {
 									$error = 1;
@@ -439,18 +439,18 @@ class Db
 						//tables
 						$tables = (empty($this->tables)) ? $error = 1 : implode(",", $this->tables);
 						//set clause
+						$this->what = array_keys($this->values);
 						$set = array();
-						foreach ($this->values as $key => $value) {
+						foreach ($this->what as $key) {
 							array_push($set, "`$key` = :$key");
 						}
-						$set = implode(',', $set);
 						//values array (make indexes like ":key")
-						array_walk($this->values, 'attachKeyColon', array(&$this->readyValueSet));
+						array_walk($this->values, array(__CLASS__, 'attachKeyColon'), array(&$this->readyValueSet));
 						//where clause
 						$cond = (empty($this->where)) ? "" : " where " . $this->where;
 						$limit = (empty($this->limit)) ? "" : " limit " . $this->limit;
 
-						$this->query = "update " . $tables . " set " . $set . $cond . $limit;
+						$this->query = "update " . $tables . " set " . implode(',', $set) . $cond . $limit;
 						break;
 					}
 				case 'delete': {
@@ -464,10 +464,20 @@ class Db
 				default:
 					break;
 			}
+			//cleaning
+			$this->modificant = "";
+			$this->what = array();
+			$this->tables = array();
+			$this->where = "";
+			$this->orderBy = array();
+			$this->orderDirection = 'ASC';
+			$this->limit = NULL;
+			$this->values = array();
+
 			//prepare query
 			$this->lastQuery = $this->PDO->prepare($this->query);
 		} catch (PDOException $exc) {
-			throw new Exception("DB :: " . __METHOD__ . " - Failed to prepare query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode());
+			throw new DbException("DB :: " . __METHOD__ . " - Failed to prepare query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
 		}
 
 		try {
@@ -483,13 +493,13 @@ class Db
 				}
 			}
 		} catch (PDOException $exc) {
-			throw new Exception("DB :: " . __METHOD__ . " - Failed to execute query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode());
+			throw new DbException("DB :: " . __METHOD__ . " - Failed to execute query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
 		}
 
 		if ($this->lastQuery instanceof PDOStatement) {
 			return $this->lastQuery;
 		} else {
-			throw new Exception("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$this->query}");
+			throw new DbException("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$this->query}", E_RECOVERABLE_ERROR);
 		}
 	}
 
@@ -504,16 +514,30 @@ class Db
 			$this->lastQuery = $this->PDO->query($query);
 			$this->queryesTotal++;
 		} catch (PDOException $exc) {
-			throw new Exception("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$query}\r" . $exc->getMessage(), $exc->getCode());
+			throw new DbException("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
 		}
 
 		return $this->lastQuery;
 	}
 
-	public function fetchIntoObject($query, $obj)
+	public function fetchIntoObject($query, $obj, $params = NULL)
 	{
-		$statement = $this->PDO->prepare($query);
-		$statement->setFetchMode(PDO::FETCH_INTO, $obj);
+		try {
+			if($query instanceof PDOStatement) {
+				$statement = $query;
+			} else {
+				$statement = $this->PDO->prepare($query);
+			}
+			$statement->setFetchMode(PDO::FETCH_INTO, $obj);
+			$statement->execute($params);
+		} catch (PDOException $exc) {
+			if($query instanceof PDOStatement) {
+				$query = $query->queryString;
+			}
+			//throw new dbException("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$query}\r" . $exc->getMessage(), $exc->getCode());
+			throw new DbException($exc);
+		}
+
 		return $statement->fetch();
 	}
 
@@ -582,31 +606,15 @@ class Db
 		}
 	}
 
+	public static function backquoEnclose($elem)
+	{
+		$elem = "`$elem`";
+		return $elem;
+	}
+
+	public static function attachKeyColon($value, $key, $return)
+	{
+		$return[0][":$key"] = $value;
+	}
+
 }
-
-//for PHP < 5.3 compatibility
-
-function quoEnclose($elem)
-{
-	$elem = KWDCore::getInstance()->sql->getPDO()->quote($elem);
-	return $elem;
-}
-
-function backquoEnclose($elem)
-{
-	$elem = "`$elem`";
-	return $elem;
-}
-
-function scobeEnclose($elem)
-{
-	$elem = "($elem)";
-	return $elem;
-}
-
-function attachKeyColon($value, $key, $return)
-{
-	$return[0][":$key"] = $value;
-}
-
-?>

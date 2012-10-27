@@ -15,13 +15,14 @@
 	class TestModel extends ObjectModel
 	{
 
-		public $data;
-		protected $db_table = 'test';
-		protected $db_fields = array(
+		protected $__dbTable = 'test';
+		protected $__dbFields = array(
 			'id' => 'isValidObjectId',
 			'name' => 'isValidObjectName',
 			'data' => ''
 		);
+
+		public $data;
 
 	}
 
@@ -53,18 +54,20 @@
 			'cookies_lifetime' => 40000,
 		);
 
-		$c = new Config($a);
+		$c = SystemConfig::getInstance($a);
+
+		$cc = new Config($a);
+		var_dump($c,$cc);
 
 		$dbh = Db::getInstance();
 		$dbh->setDbParameters($c->db_driver, $c->db_server, $c->db_name, $c->db_charset, $c->db_login, $c->db_password);
-		//var_dump($dbh);
+		var_dump($dbh);
 
-		/*
+
 		  $obj = new TestModel(1);
 		  var_dump($obj);
 		  $obj->data = uniqid();
 		  $obj->save();
-		 */
 
 
 		$reloaded_obj = new TestModel(1);
