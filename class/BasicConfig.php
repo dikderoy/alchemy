@@ -51,6 +51,16 @@ abstract class BasicConfig
 		return FALSE;
 	}
 
+	public function get($name)
+	{
+		return $this->{$name};
+	}
+
+	public function set($name, $value)
+	{
+		$this->{$name} = $value;
+	}
+
 	/**
 	 * sets variables in class depending on keys in given array
 	 * @param array $settings key paired values to set within object

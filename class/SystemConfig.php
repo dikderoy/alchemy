@@ -78,4 +78,14 @@ class SystemConfig extends BasicConfig
 		return self::$instance;
 	}
 
+	public static function get($name)
+	{
+		return self::$instance->{$name};
+	}
+
+	public static function set($name, $value)
+	{
+		self::$instance->{$name} = $value;
+	}
+
 }

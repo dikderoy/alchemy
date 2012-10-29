@@ -19,13 +19,13 @@ abstract class Controller
 	 * method called before action run
 	 * @abstract
 	 */
-	public abstract function beforeAction($actionName);
+	protected abstract function beforeAction($actionName);
 
 	/**
 	 * method called after action run
 	 * @abstract
 	 */
-	public abstract function afterAction($actionName);
+	protected abstract function afterAction($actionName);
 
 	/**
 	 * default action
@@ -61,7 +61,7 @@ abstract class Controller
 				$handler = "defaultErrorHandler";
 			}
 			if (!method_exists($this, $exc->getHandler())) {
-				throw new Exception("Fatal Exeption :: Error Handler `{$exc->getHandler()}` in class `" . __CLASS__ . "`not found!", E_CORE_ERROR);
+				throw new Exception("Fatal Exception :: Error Handler `{$exc->getHandler()}` in class `" . __CLASS__ . "`not found!", E_CORE_ERROR);
 			}
 			$this->error = $this->{$exc->getHandler()}($exc);
 		} catch (DbException $dbExc) {
@@ -75,5 +75,3 @@ abstract class Controller
 
 	protected abstract function dbErrorHandler($exc);
 }
-
-?>

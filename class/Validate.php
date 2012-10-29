@@ -15,7 +15,7 @@ abstract class Validate
 
 	public static function isValidEmail($text)
 	{
-		$ereg = "#^[-A-Za-z0-9!\#$%&'*+/=?^_`{|}~]+(\.[-A-Za-z0-9!\#$%&'*+/=?^_`{|}~]+)*@([A-Za-z0-9]([-A-Za-z0-9]{0,61}[A-Za-z0-9])?\.)*(aero|arpa|asia|biz|cat|com|coop|edu|gov|info|int|jobs|mil|mobi|museum|name|net|org|pro|tel|travel|[A-Za-z]{2,4})$#";
+		$ereg = "#^[-A-Za-z0-9!\#$%&'*+/=?^_`{|}~]+(\.[-A-Za-z0-9!\#$%&'*+/=?^_`{|}~]+)*@([A-Za-z0-9]([-A-Za-z0-9]{0,61}[A-Za-z0-9])?\.)*(museum|travel|[A-Za-z]{2,4})$#";
 		$text = trim($text);
 
 		return self::isValidPrototype($ereg, $text);
