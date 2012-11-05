@@ -1,13 +1,7 @@
 <?php
 
-class Db
+class Db extends SingletoneModel
 {
-
-	/**
-	 * instance of DB
-	 * @var Db
-	 */
-	protected static $instance;
 
 	/**
 	 * PDO DB resource
@@ -86,27 +80,6 @@ class Db
 	protected $values = array();
 	protected $readyValueSet = array();
 
-	private function __construct()
-	{
-		/* ... @return Singleton */
-	}
-
-	/**
-	 * protect from creation  by cloning
-	 */
-	private function __clone()
-	{
-		/* ... @return Singleton */
-	}
-
-	/**
-	 * protect from creation by unserialize
-	 */
-	private function __wakeup()
-	{
-		/* ... @return Singleton */
-	}
-
 	/**
 	 * returns singleton instance of DB
 	 * @return Db
@@ -137,14 +110,14 @@ class Db
 	 * @param string $password
 	 * @param array $options - additional options for PDO object
 	 */
-	public function setDbParameters($dbDriver, $serverAddress, $dbName, $charSet, $login, $password, $options = array())
+	public function setDbParameters($config, $options = array())
 	{
-		$this->dbDriver = $dbDriver;
-		$this->serverAddress = $serverAddress;
-		$this->dbName = $dbName;
-		$this->charSet = $charSet;
-		$this->login = $login;
-		$this->password = $password;
+		$this->dbDriver = $config->dbDriver;
+		$this->serverAddress = $config->dbServer;
+		$this->dbName = $config->dbName;
+		$this->charSet = $config->dbCharset;
+		$this->login = $config->dbLogin;
+		$this->password = $config->dbPassword;
 		$this->options = $options;
 	}
 
@@ -534,8 +507,7 @@ class Db
 			if($query instanceof PDOStatement) {
 				$query = $query->queryString;
 			}
-			//throw new dbException("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$query}\r" . $exc->getMessage(), $exc->getCode());
-			throw new DbException($exc);
+			throw new dbException("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$query}\r" . $exc->getMessage(), $exc->getCode());
 		}
 
 		return $statement->fetch();
@@ -572,7 +544,7 @@ class Db
 		return $elem;
 	}
 
-	public static function escapeChars($adapter, $elem)
+	public static function escapeChars($elem)
 	{
 		$elem = htmlspecialchars($elem);
 		//$elem = mysql_real_escape_string($elem, $adapter);

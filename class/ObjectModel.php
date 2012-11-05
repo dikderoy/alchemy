@@ -10,7 +10,7 @@ abstract class ObjectModel
 
 	public $id;
 	public $name;
-	protected $isLoadedObject = FALSE;
+	protected $__isLoadedObject = FALSE;
 	protected $__dbTable;
 	protected $__dbFields = array(
 		'id' => 'isValidObjectId',
@@ -26,7 +26,7 @@ abstract class ObjectModel
 			$statement->fetch();
 			 */
 			Db::getInstance()->fetchIntoObject($statement, $this,array($id));
-			$this->isLoadedObject = TRUE;
+			$this->__isLoadedObject = TRUE;
 		}
 	}
 
@@ -67,7 +67,7 @@ abstract class ObjectModel
 		}
 		if (empty($this->id)) {
 			return $this->add();
-		} elseif ($this->isLoadedObject) {
+		} elseif ($this->__isLoadedObject) {
 			return $this->update();
 		}
 		return FALSE;

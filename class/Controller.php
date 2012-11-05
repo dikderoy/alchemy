@@ -8,8 +8,21 @@
 abstract class Controller
 {
 
+	/**
+	 * prefix from wich action methods of this controller should start
+	 * @var string
+	 */
 	protected $actionPrefix = 'action';
+	/**
+	 * holds data generated during action execution
+	 * @var array
+	 */
 	protected $data;
+	/**
+	 * holds description of error and description of circumstances under wich it has occured
+	 * given by ErrorHandler wich processed this error
+	 * @var string
+	 */
 	protected $error;
 	protected $rendered;
 	protected $outputType;
@@ -60,10 +73,10 @@ abstract class Controller
 			if (empty($handler)) {
 				$handler = "defaultErrorHandler";
 			}
-			if (!method_exists($this, $exc->getHandler())) {
-				throw new Exception("Fatal Exception :: Error Handler `{$exc->getHandler()}` in class `" . __CLASS__ . "`not found!", E_CORE_ERROR);
+			if (!method_exists($this, $handler)) {
+				throw new Exception("Fatal Exception :: Error Handler `{$handler}` in class `" . __CLASS__ . "`not found!", E_CORE_ERROR);
 			}
-			$this->error = $this->{$exc->getHandler()}($exc);
+			$this->error = $this->{$handler}($exc);
 		} catch (DbException $dbExc) {
 			$this->error = $this->dbErrorHandler($dbExc);
 		}

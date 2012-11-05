@@ -16,40 +16,42 @@ class SystemConfig extends BasicConfig
 	/**
 	 * database config values
 	 */
-	public $db_driver;
-	public $db_server;
-	public $db_name;
-	public $db_login;
-	public $db_password;
-	public $db_charset = 'utf8';
+	public $dbDriver;
+	public $dbServer;
+	public $dbName;
+	public $dbLogin;
+	public $dbPassword;
+	public $dbCharset = 'utf8';
+
+	public $userSupport = FALSE;
 
 	/**
 	 * app response settings
 	 */
-	public $site_encoding = 'utf8';
-	public $html_doctype;
+	public $siteEncoding = 'utf8';
+	public $htmlDoctype = 'html5';
 
 	/**
 	 * @var bool defines whatever debug info (post, get, session, cookie arrays print_r()) must be shown or not
 	 */
-	public $show_enveronment_debug = FALSE;
+	public $showEnveronmentDebug = FALSE;
 
 	/**
 	 * @var bool defines whatever debug var_dump() function executed on response data
 	 */
-	public $show_response_vardump = FALSE;
+	public $showResponseVardump = FALSE;
 
 	/**
 	 * @var int - define a lifetime of cookies in seconds
 	 */
-	public $cookies_lifetime = 40000;
+	public $cookiesLifetime = 40000;
 
 	/**
 	 * protect from creation  by cloning
 	 */
 	private function __clone()
 	{
-		/* ... @return Singleton */
+
 	}
 
 	/**
@@ -57,7 +59,7 @@ class SystemConfig extends BasicConfig
 	 */
 	private function __wakeup()
 	{
-		/* ... @return Singleton */
+
 	}
 
 	private function __construct($settings)
@@ -67,7 +69,7 @@ class SystemConfig extends BasicConfig
 
 	/**
 	 * returns singleton instance of DB
-	 * @return Db
+	 * @return SystemConfig
 	 */
 	public static function getInstance($settings = NULL)
 	{
