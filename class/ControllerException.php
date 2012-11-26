@@ -28,7 +28,7 @@ class ControllerException extends Exception
 
 	public function getHandler()
 	{
-		return $this->handlerName.'ExeptionHandler';
+		return $this->handlerName.'ExceptionHandler';
 	}
 
 }

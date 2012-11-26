@@ -1,7 +1,12 @@
 <?php
 
-class Db extends SingletoneModel
+class Db extends SingletoneModel implements ISingletone
 {
+	/**
+	 *instance of Db
+	 * @var Db
+	 */
+	protected static $instance;
 
 	/**
 	 * PDO DB resource
@@ -84,7 +89,7 @@ class Db extends SingletoneModel
 	 * returns singleton instance of DB
 	 * @return Db
 	 */
-	public static function getInstance()
+	public static function getInstance($config = NULL)
 	{
 		if (is_null(self::$instance)) {
 			self::$instance = new self();
@@ -95,23 +100,26 @@ class Db extends SingletoneModel
 		} elseif (self::$instance->hasDbParameters()) {
 			self::$instance->connect();
 			return self::$instance;
+		} elseif (!empty ($config)) {
+			self::$instance->setDbParameters($config);
+			self::$instance->connect();
+			return self::$instance;
 		} else {
+			throw new DbException('error establishing connection to DB');
 			return self::$instance;
 		}
 	}
 
 	/**
 	 * sets parameters for connection to a server
-	 * @param string $dbDriver
-	 * @param string $serverAddress
-	 * @param string $dbName
-	 * @param string $charSet
-	 * @param string $login
-	 * @param string $password
 	 * @param array $options - additional options for PDO object
 	 */
 	public function setDbParameters($config, $options = array())
 	{
+		if(!($config instanceof BasicConfig)) {
+			return FALSE;
+		}
+
 		$this->dbDriver = $config->dbDriver;
 		$this->serverAddress = $config->dbServer;
 		$this->dbName = $config->dbName;
@@ -137,12 +145,6 @@ class Db extends SingletoneModel
 
 	/**
 	 * initiate a connection to server
-	 * @param string $dbDriver
-	 * @param string $serverAddress
-	 * @param string $dbName
-	 * @param string $charSet
-	 * @param string $login
-	 * @param string $password
 	 * @param array $options - additional options for PDO object
 	 */
 	public function connect($options = array())

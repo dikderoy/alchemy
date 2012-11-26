@@ -6,6 +6,7 @@
  */
 interface IRouter
 {
+
 	/**
 	 * parses request
 	 */
@@ -29,5 +30,5 @@ interface IRouter
 	/**
 	 * return item id parsed from query
 	 */
-	public function getItemId();
+	public function getId();
 }

@@ -8,12 +8,9 @@
 abstract class SingletoneModel
 {
 
-	protected static $instance;  // object instance
-
 	/**
 	 * protect from creation by new Singleton
 	 */
-
 	protected function __construct()
 	{
 		/* ... @return Singleton */
@@ -33,17 +30,6 @@ abstract class SingletoneModel
 	protected final function __wakeup()
 	{
 		/* ... @return Singleton */
-	}
-
-	/**
-	 * returns singleton instance of Class
-	 */
-	public static function getInstance()
-	{
-		if (is_null(self::$instance)) {
-			self::$instance = new self();
-		}
-		return self::$instance;
 	}
 
 }

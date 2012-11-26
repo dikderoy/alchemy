@@ -15,4 +15,14 @@ class Config extends BasicConfig
 		$this->setConfig($settings);
 	}
 
+	public function get($name)
+	{
+		return $this->{$name};
+	}
+
+	public function set($name, $value)
+	{
+		$this->{$name} = $value;
+	}
+
 }

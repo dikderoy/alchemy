@@ -5,13 +5,13 @@
  *
  * @author Deroy
  */
-class Core extends SingletoneModel
+class Core extends SingletoneModel implements ISingletone
 {
 	/**
-	 * SQL connection object
-	 * @var Db
+	 * instance of Core
+	 * @var Core
 	 */
-	private $db;
+	private static $instance;
 
 	/**
 	 * Session Handler object
@@ -33,50 +33,113 @@ class Core extends SingletoneModel
 	public $error = FALSE;
 
 	/**
-	 * Config object there all service information is stored
-	 * @var Config
+	 * holds all system output
+	 * @var string
 	 */
-	public $registry;
+	public $output = NULL;
+
+	/**
+	 * returns singleton instance of Class
+	 * @return Core
+	 */
+	public static function getInstance()
+	{
+		if (is_null(self::$instance)) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	public function __toString()
+	{
+		return "Core Object";
+	}
 
 	protected function sessionInit()
 	{
-
+		session_start();
 	}
 
 	public function init()
 	{
 		try {
-			$this->registry = new Config();
-			$this->registry->set('executionTime', microtime(TRUE));
-
-			Db::getInstance()->setDbParameters(SystemConfig::getInstance());
-
 			$this->router = new Router();
-			$this->router->parseRequest();
+			if ($this->router instanceof IRouter) {
+				$this->router->parseRequest();
+				Registry::getInstance()->currentController = $this->router->getController();
+				Registry::getInstance()->currentAction = $this->router->getAction();
+			} else {
+				throw new Exception('router class does not implements IRouter interface', 500);
+			}
 
+			Db::getInstance(Registry::getInstance());
 			$this->sessionInit();
 
-			if(SystemConfig::getInstance()->userSupport) {
+			if (Registry::getInstance()->userSupport) {
 				//here comes getUser , isUserAuthorized etc...
 			}
 		} catch (Exception $exc) {
 			$this->error = TRUE;
-			$this->registry->errorException = $exc;
+			$this->initErrorHandler($exc);
 		} catch (DbException $exc) {
 			$this->error = TRUE;
-			$this->registry->errorException = $exc;
+			$this->initErrorHandler($exc);
 		}
 	}
 
 	public function run()
 	{
-		if($this->error) {
-			$this->initErrorHandler($this->registry->errorException);
+		if ($this->error) {
+			//$this->initErrorHandler(Registry::get('initException'));
 		}
+
+		try {
+			$this->output = $this->runController(
+					Registry::getInstance()->currentController,
+					Registry::getInstance()->currentAction
+			);
+		} catch (Exception $exc) {
+			$this->output = $this->runController('ControllerError', $exc->getCode());
+		}
+	}
+
+	public function finish()
+	{
+		print $this->output;
+
+
+		if(Registry::getInstance()->showEnveronmentDebug) {
+			print '<pre>';
+			print_r(Registry::getInstance()->calculateExecutionStatistics());
+			var_dump($_SESSION,$_GET,$_POST,$_COOKIE);
+			print '</pre>';
+		}
+
+		if(Registry::getInstance()->showResponseVardump) {
+			print '<pre>';
+			var_dump($this->output);
+			print '</pre>';
+		}
+
+	}
+
+	protected function runController($controllerName, $actionName)
+	{
+		if (!Tools::includeFileIfExists($controllerName, 'controller/')) {
+			$controllerName = Registry::getInstance()->defaultController;
+		}
+		$c = new $controllerName();
+		if ($c instanceof Controller) {
+			$c->runAction($actionName, $this->router->getId());
+		}
+
+		return $c->renderOutput();
 	}
 
 	protected function initErrorHandler($exc)
 	{
-
+		//echo $exc->getTraceAsString();
+		Registry::set('initError', $exc->getMessage());
 	}
+
 }

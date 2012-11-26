@@ -13,20 +13,55 @@ abstract class Controller
 	 * @var string
 	 */
 	protected $actionPrefix = 'action';
+
 	/**
 	 * holds data generated during action execution
 	 * @var array
 	 */
 	protected $data;
+
 	/**
 	 * holds description of error and description of circumstances under wich it has occured
 	 * given by ErrorHandler wich processed this error
 	 * @var string
 	 */
-	protected $error;
-	protected $rendered;
+	public $error;
+
+	/**
+	 * holds data forged for request
+	 * @var string
+	 */
+	public $rendered;
+
+	/**
+	 * defines whatever result of execution can be cached
+	 * and further retrieved from cache
+	 * @var bool
+	 */
+	public $isCacheable = FALSE;
+
+	/**
+	 * @var string - type of output (must be a value recognizable by viewClass)
+	 */
 	protected $outputType;
+
+	/**
+	 * @var string - holds name of viewClass used
+	 */
 	protected $viewClass;
+
+	/**
+	 * instance of classView
+	 * @var object
+	 */
+	protected $view;
+
+	/**
+	 * construction method
+	 *
+	 * here a viewClass may be instantiated
+	 */
+	public abstract function __construct();
 
 	/**
 	 * method called before action run
@@ -60,11 +95,12 @@ abstract class Controller
 	{
 		try {
 			if (!method_exists($this, $this->actionPrefix . $actionName)) {
-				throw new ControllerException('noAction', "action $actionName not implemented");
+				throw new ControllerException("action $actionName not implemented", 'noAction');
+				$actionName = Registry::getInstance()->defaultAction;
 			}
 			$this->beforeAction($actionName);
 			$this->data = $this->{$this->actionPrefix . $actionName}($data);
-			if($this->data === FALSE) {
+			if ($this->data === FALSE) {
 				throw new ControllerException("action `$actionName` returned bad result", $actionName);
 			}
 			$this->afterAction($actionName);
@@ -74,7 +110,7 @@ abstract class Controller
 				$handler = "defaultErrorHandler";
 			}
 			if (!method_exists($this, $handler)) {
-				throw new Exception("Fatal Exception :: Error Handler `{$handler}` in class `" . __CLASS__ . "`not found!", E_CORE_ERROR);
+				throw new Exception("Fatal Exception :: Error Handler `{$handler}` in class `" . get_called_class() . "` not found! ", E_CORE_ERROR);
 			}
 			$this->error = $this->{$handler}($exc);
 		} catch (DbException $dbExc) {
@@ -82,9 +118,24 @@ abstract class Controller
 		}
 	}
 
+	public function renderOutput()
+	{
+		if (!($this->view instanceof $this->viewClass)) {
+			$this->view = new $this->viewClass();
+		}
+
+		if ($this->view instanceof IView) {
+			return $this->view->render($this->data);
+		}
+
+		return FALSE;
+	}
+
 	protected abstract function defaultErrorHandler($exc);
 
 	protected abstract function defaultActionErrorHandler($exc);
 
 	protected abstract function dbErrorHandler($exc);
+
+	protected abstract function noActionExceptionHandler($exc);
 }

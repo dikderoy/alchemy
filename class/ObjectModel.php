@@ -67,7 +67,7 @@ abstract class ObjectModel
 		}
 		if (empty($this->id)) {
 			return $this->add();
-		} elseif ($this->__isLoadedObject) {
+		} elseif ($this->__isLoadedObject && !empty ($this->id)) {
 			return $this->update();
 		}
 		return FALSE;
