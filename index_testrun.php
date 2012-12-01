@@ -12,5 +12,3 @@ try {
 	echo "<pre>".$exc->getTraceAsString()."\r\n".$exc->getMessage()."\r\n";
 	var_dump(Core::getInstance(),Registry::getInstance());
 }
-
-

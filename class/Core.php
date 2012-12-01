@@ -7,6 +7,7 @@
  */
 class Core extends SingletoneModel implements ISingletone
 {
+
 	/**
 	 * instance of Core
 	 * @var Core
@@ -34,7 +35,8 @@ class Core extends SingletoneModel implements ISingletone
 
 	/**
 	 * holds all system output
-	 * @var string
+	 * it can by a string of rendered data or an IView object
+	 * @var \string|IView output string or configured view object
 	 */
 	public $output = NULL;
 
@@ -80,65 +82,52 @@ class Core extends SingletoneModel implements ISingletone
 			}
 		} catch (Exception $exc) {
 			$this->error = TRUE;
-			$this->initErrorHandler($exc);
+			//$this->initErrorHandler($exc);
+			Registry::set('initException', $exc);
 		} catch (DbException $exc) {
 			$this->error = TRUE;
-			$this->initErrorHandler($exc);
+			//$this->initErrorHandler($exc);
+			Registry::set('initException', $exc);
 		}
 	}
 
 	public function run()
 	{
-		if ($this->error) {
-			//$this->initErrorHandler(Registry::get('initException'));
-		}
-
 		try {
-			$this->output = $this->runController(
-					Registry::getInstance()->currentController,
-					Registry::getInstance()->currentAction
-			);
+			if ($this->error) {
+				$this->initErrorHandler(Registry::get('initException'));
+			} else {
+				$this->output = Controller::runController(Registry::getInstance()->currentController, Registry::getInstance()->currentAction,  $this->router->getId());
+			}
 		} catch (Exception $exc) {
-			$this->output = $this->runController('ControllerError', $exc->getCode());
+			$this->output = Controller::runController('ControllerError', $exc->getCode(), $exc);
 		}
 	}
 
 	public function finish()
 	{
-		print $this->output;
+		if($this->output instanceof IView) {
+			$this->output->displayGenerated();
+		} else {
+			print $this->output;
+		}
 
-
-		if(Registry::getInstance()->showEnveronmentDebug) {
+		if (Registry::getInstance()->showEnveronmentDebug) {
 			print '<pre>';
 			print_r(Registry::getInstance()->calculateExecutionStatistics());
-			var_dump($_SESSION,$_GET,$_POST,$_COOKIE);
+			var_dump($_SESSION, $_GET, $_POST, $_COOKIE);
 			print '</pre>';
 		}
 
-		if(Registry::getInstance()->showResponseVardump) {
+		if (Registry::getInstance()->showResponseVardump) {
 			print '<pre>';
 			var_dump($this->output);
 			print '</pre>';
 		}
-
-	}
-
-	protected function runController($controllerName, $actionName)
-	{
-		if (!Tools::includeFileIfExists($controllerName, 'controller/')) {
-			$controllerName = Registry::getInstance()->defaultController;
-		}
-		$c = new $controllerName();
-		if ($c instanceof Controller) {
-			$c->runAction($actionName, $this->router->getId());
-		}
-
-		return $c->renderOutput();
 	}
 
 	protected function initErrorHandler($exc)
 	{
-		//echo $exc->getTraceAsString();
 		Registry::set('initError', $exc->getMessage());
 	}
 

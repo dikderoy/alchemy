@@ -9,17 +9,9 @@ class ControllerError extends Controller
 {
 	public function __construct()
 	{
-		$this->viewClass = 'HTML5PageView';
-	}
+		$this->viewClass = 'HTMLView';
 
-	public function beforeAction($actionName)
-	{
-
-	}
-
-	public function afterAction($actionName)
-	{
-
+		$this->setActionTemplate('noActionExceptionHandler', 'ErrorWrapper.tpl');
 	}
 
 	public function defaultActionErrorHandler($exc)
@@ -39,7 +31,11 @@ class ControllerError extends Controller
 
 	public function noActionExceptionHandler($exc)
 	{
-		$this->data =  '404 page not found! =(';
+		if($exc instanceof Exception) {
+			$this->data['content'] =  $exc->getMessage();
+		} else {
+			$this->data['content'] =  "Some wild Error Occured!!!";
+		}
 	}
 
 	public function actionDefault($data)

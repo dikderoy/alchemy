@@ -1,27 +1,6 @@
 <?php
 
-function autoloadClass($class)
-{
-	$path = dirname(__FILE__) . "/class/";
-	$file = $path . $class . ".php";
-	if (file_exists($file)) {
-		include_once $file;
-	}
-}
-
-function autoloadInterface($interface)
-{
-	Tools::includeFileIfExists($interface, dirname(__FILE__) . "/interface/", 'php', FALSE);
-}
-
-function autoloadController($controller)
-{
-	Tools::includeFileIfExists($controller, dirname(__FILE__) . "/controller/", 'php', FALSE);
-}
-
-spl_autoload_register('autoloadClass', TRUE);
-spl_autoload_register('autoloadInterface', TRUE);
-spl_autoload_register('autoloadController', TRUE);
+require_once 'class/Autoloader.php';
 
 $system_config = array(
 	'rootDirectory' => dirname(__FILE__),
@@ -46,7 +25,7 @@ $system_config = array(
 	// bool - defines whatever debug info (post, get, session, cookie arrays print_r()) must be shown or not
 	'showEnveronmentDebug' => FALSE,
 	// bool - defines whatever debug var_dump() function executed on response data
-	'showResponseVardump' => TRUE,
+	'showResponseVardump' => FALSE,
 	// int - define a lifetime of cookies in seconds
 	'cookiesLifetime' => 40000,
 );

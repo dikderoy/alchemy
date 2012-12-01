@@ -11,9 +11,21 @@
  */
 interface IView
 {
-	public function render($data);
 
-	public function assign($data);
+	public function setTemplateName($name);
+
+	public function extend($template);
+
+	/**
+	 * if one parameter is given, then it must be array of key=value pairs
+	 * wich represents template vars and its values
+	 * else
+	 * first argument is template variable name
+	 * second is its value
+	 * @param \string|array $data
+	 * @param \mixed $data2
+	 */
+	public function assign($data, $data2 = NULL);
+
+	public function displayGenerated();
 }
-
-?>

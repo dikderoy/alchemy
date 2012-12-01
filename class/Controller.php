@@ -25,13 +25,15 @@ abstract class Controller
 	 * given by ErrorHandler wich processed this error
 	 * @var string
 	 */
-	public $error;
+	protected $error;
 
 	/**
-	 * holds data forged for request
-	 * @var string
+	 * holds data defining wich subtemplate to use for each of defined actions
+	 * @var array
 	 */
-	public $rendered;
+	protected $actionTemplates = array(
+		'default' => 'defaultAction.tpl'
+	);
 
 	/**
 	 * defines whatever result of execution can be cached
@@ -51,29 +53,25 @@ abstract class Controller
 	protected $viewClass;
 
 	/**
-	 * instance of classView
-	 * @var object
+	 * instance of IView implementation class
+	 * @var IView
 	 */
 	protected $view;
-
-	/**
-	 * construction method
-	 *
-	 * here a viewClass may be instantiated
-	 */
-	public abstract function __construct();
 
 	/**
 	 * method called before action run
 	 * @abstract
 	 */
-	protected abstract function beforeAction($actionName);
+	protected function beforeAction($actionName)
+	{
+		$this->initView($this->getActionTemplate($actionName));
+	}
 
 	/**
 	 * method called after action run
 	 * @abstract
 	 */
-	protected abstract function afterAction($actionName);
+	protected function afterAction($actionName);
 
 	/**
 	 * default action
@@ -91,45 +89,102 @@ abstract class Controller
 	 * @throws Exeption - in cause of fatal exeption this is thrown to catch it at higher levels of abstraction
 	 * @throws ControllerException - this is thrown if action method does not exists or if it ends up with FALSE returned
 	 */
-	public final function runAction($actionName, $data)
+	public final function runAction($actionName, $data, $actionPrefix = NULL)
 	{
+		//infinity recursion loop protection
+		static $recursion_level = 1;
+		if ($recursion_level < 3) {
+			$recursion_level++;
+		} else {
+			return FALSE;
+		}
+
 		try {
-			if (!method_exists($this, $this->actionPrefix . $actionName)) {
+			//assign actual action prefix value
+			if ($actionPrefix === NULL) {
+				$actionPrefix = $this->actionPrefix;
+			}
+			//make sure what method exists
+			if (!method_exists($this, $actionPrefix . $actionName)) {
+				//throw noAction CException
 				throw new ControllerException("action $actionName not implemented", 'noAction');
+				//or fallback to default action
 				$actionName = Registry::getInstance()->defaultAction;
 			}
 			$this->beforeAction($actionName);
-			$this->data = $this->{$this->actionPrefix . $actionName}($data);
-			if ($this->data === FALSE) {
-				throw new ControllerException("action `$actionName` returned bad result", $actionName);
+			$exec_state = $this->{$actionPrefix . $actionName}($data);
+			//throw actionName CException if data catched from action equals to FALSE instead of array
+			if ($exec_state === FALSE) {
+				throw new ControllerActionError("action `$actionName` returned bad result", $actionName);
 			}
 			$this->afterAction($actionName);
-		} catch (ControllerException $exc) {
-			$handler = $exc->getHandler();
-			if (empty($handler)) {
-				$handler = "defaultErrorHandler";
-			}
-			if (!method_exists($this, $handler)) {
-				throw new Exception("Fatal Exception :: Error Handler `{$handler}` in class `" . get_called_class() . "` not found! ", E_CORE_ERROR);
-			}
+		} catch (ControllerActionError $exc) {
+			$handler = $exc->getHandler($this);
 			$this->error = $this->{$handler}($exc);
+		} catch (ControllerException $exc) {
+			$handler = $exc->getHandler($this);
+			$this->runAction($handler, $exc, '');
 		} catch (DbException $dbExc) {
-			$this->error = $this->dbErrorHandler($dbExc);
+			$this->runAction('dbErrorHandler', $dbExc);
 		}
 	}
 
-	public function renderOutput()
+	public static final function runController($controllerName, $actionName, $itemId = NULL)
 	{
-		if (!($this->view instanceof $this->viewClass)) {
+		if (!Tools::includeFileIfExists($controllerName, 'controller/')) {
+			$controllerName = Registry::getInstance()->defaultController;
+		}
+		$c = new $controllerName();
+		if ($c instanceof Controller) {
+			$c->runAction($actionName, $itemId);
+		}
+
+		return $c->getView();
+	}
+
+	public function initView($template)
+	{
+		if (empty($this->view)) {
 			$this->view = new $this->viewClass();
 		}
 
 		if ($this->view instanceof IView) {
-			return $this->view->render($this->data);
+			$this->view->setTemplateName($template);
+			return TRUE;
 		}
 
 		return FALSE;
 	}
+
+	public function getView()
+	{
+		if (empty($this->view)) {
+			$this->view = new $this->viewClass();
+		}
+
+		if ($this->view instanceof IView) {
+			$this->view->assign($this->data);
+			$this->view->assign('error_info', $this->error);
+			return $this->view;
+		}
+
+		return FALSE;
+	}
+
+	public final function getActionTemplate($actionName)
+	{
+		if(array_key_exists($actionName, $this->actionTemplates)) {
+			return $this->actionTemplates[$actionName];
+		} else {
+			return $this->actionTemplates['default'];
+		}
+	}
+
+	public final function setActionTemplate($actionName, $template)
+	{
+		$this->actionTemplates[$actionName] = $template;
+	}
+
 
 	protected abstract function defaultErrorHandler($exc);
 
