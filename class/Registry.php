@@ -4,7 +4,7 @@
  * SIngletone. Holds system settings durring the execution
  * @author Deroy
  */
-class Registry extends BasicConfig
+class Registry extends Structure
 {
 
 	/**
@@ -32,6 +32,12 @@ class Registry extends BasicConfig
 	public $dbCharset = 'utf8';
 
 	/**
+	 * defines whatever smarty caching system is enabled
+	 * @var bool
+	 */
+	public $cachingEnabled = FALSE;
+
+	/**
 	 * controller called if no controller parameter given
 	 * @var string
 	 */
@@ -56,6 +62,12 @@ class Registry extends BasicConfig
 	public $currentAction = 'Default';
 
 	/**
+	 * current used pageId parameter(used for caching and retrieving from db a specified entry)
+	 * @var integer|string
+	 */
+	public $currentPageId = NULL;
+
+	/**
 	 * encoding flag used in server- and meta-headers
 	 * @var string
 	 */
@@ -67,6 +79,16 @@ class Registry extends BasicConfig
 	 * @var bool
 	 */
 	public $userSupport = FALSE;
+
+	/**
+	 * defines whatever to show any debug at all
+	 * if set to FALSE no debug will be shown
+	 * regardless to values of
+	 *	$showEnveronmentDebug
+	 *	$showResponseVardump
+	 * @var bool
+	 */
+	public $showDebug = FALSE;
 
 	/**
 	 * defines whatever debug info (post, get, session, cookie arrays print_r()) must be shown or not

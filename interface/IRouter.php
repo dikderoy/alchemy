@@ -18,6 +18,11 @@ interface IRouter
 	public function getRequest();
 
 	/**
+	 * returns request parsed data as array
+	 */
+	public function getParamsArray();
+
+	/**
 	 * returns controller name parsed from query
 	 */
 	public function getController();

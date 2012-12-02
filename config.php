@@ -22,10 +22,13 @@ $system_config = array(
 	'htmlDoctype' => 'html5',
 	// bool - defines access_control enabled on main page or not
 	'main_access_restricted' => FALSE,
+	//debug_display
+	'showDebug' => TRUE,
 	// bool - defines whatever debug info (post, get, session, cookie arrays print_r()) must be shown or not
 	'showEnveronmentDebug' => FALSE,
 	// bool - defines whatever debug var_dump() function executed on response data
 	'showResponseVardump' => FALSE,
 	// int - define a lifetime of cookies in seconds
 	'cookiesLifetime' => 40000,
+
 );

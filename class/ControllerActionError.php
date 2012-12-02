@@ -17,4 +17,10 @@ class ControllerActionError extends ControllerException
 
 	protected $handlerPostfix = 'ErrorHandler';
 
+	public function getHandler(Controller $controller)
+	{
+		$this->handlerName = (string)$controller->getActionPrefix().$this->handlerName;
+		return parent::getHandler($controller);
+	}
+
 }

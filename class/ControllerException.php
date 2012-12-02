@@ -31,7 +31,7 @@ class ControllerException extends Exception
 		$this->handlerName = $handler;
 	}
 
-	public function getHandler($controller)
+	public function getHandler(Controller $controller)
 	{
 		if (empty($this->handlerName)) {
 			$handler = 'default' . $this->handlerPostfix;
@@ -43,7 +43,7 @@ class ControllerException extends Exception
 			throw new Exception("Fatal Exception :: Error Handler `{$handler}` in class `" . get_class($controller) . "` not found! ", E_CORE_ERROR);
 		}
 
-		return $handler;
+		return (string)$handler;
 	}
 
 }

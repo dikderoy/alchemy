@@ -44,6 +44,11 @@ class Router implements IRouter
 		return $this->request;
 	}
 
+	public function getParamsArray()
+	{
+		return $this->params;
+	}
+
 	public function getController()
 	{
 		return $this->controllerPrefix.$this->controller;

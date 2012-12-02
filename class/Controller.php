@@ -5,7 +5,7 @@
  *
  * @author Deroy
  */
-abstract class Controller
+abstract class Controller extends Structure
 {
 
 	/**
@@ -40,7 +40,7 @@ abstract class Controller
 	 * and further retrieved from cache
 	 * @var bool
 	 */
-	public $isCacheable = FALSE;
+	protected $isCacheable = FALSE;
 
 	/**
 	 * @var string - type of output (must be a value recognizable by viewClass)
@@ -71,15 +71,10 @@ abstract class Controller
 	 * method called after action run
 	 * @abstract
 	 */
-	protected function afterAction($actionName);
+	protected function afterAction($actionName)
+	{
 
-	/**
-	 * default action
-	 * controller must have at list one action
-	 * @abstract
-	 * @var array $data - accepted work parameters or data
-	 */
-	public abstract function actionDefault($data);
+	}
 
 	/**
 	 * run an action method in failsafe enveronment and catch any wayward Exeptions thrown
@@ -112,6 +107,9 @@ abstract class Controller
 				$actionName = Registry::getInstance()->defaultAction;
 			}
 			$this->beforeAction($actionName);
+			if ($this->isCached()) {
+				return TRUE;
+			}
 			$exec_state = $this->{$actionPrefix . $actionName}($data);
 			//throw actionName CException if data catched from action equals to FALSE instead of array
 			if ($exec_state === FALSE) {
@@ -120,10 +118,18 @@ abstract class Controller
 			$this->afterAction($actionName);
 		} catch (ControllerActionError $exc) {
 			$handler = $exc->getHandler($this);
-			$this->error = $this->{$handler}($exc);
+			if (Validate::isValidObjectName($handler)) {
+				$this->error = $this->{$handler}($exc);
+			} else {
+				throw new Exception("Invalid handler name - `$handler` on " . __LINE__ . " in " . __FILE__);
+			}
 		} catch (ControllerException $exc) {
 			$handler = $exc->getHandler($this);
-			$this->runAction($handler, $exc, '');
+			if (Validate::isValidObjectName($handler)) {
+				$this->runAction($handler, $exc, '');
+			} else {
+				throw new Exception("Invalid handler name - `$handler` on " . __LINE__ . " in " . __FILE__);
+			}
 		} catch (DbException $dbExc) {
 			$this->runAction('dbErrorHandler', $dbExc);
 		}
@@ -142,6 +148,20 @@ abstract class Controller
 		return $c->getView();
 	}
 
+	public function isCached()
+	{
+		if ($this->isCacheable && ($this->view instanceof IView) && !Registry::getInstance()->showDebug) {
+			if (empty(Registry::getInstance()->currentPageId)) {
+				$cache_id = NULL;
+			} else {
+				$cache_id = Registry::getInstance()->currentPageId;
+				$this->view->setCacheId($cache_id);
+			}
+			return $this->view->isCached($this->view->getTemplateName(), $cache_id);
+		}
+		return FALSE;
+	}
+
 	public function initView($template)
 	{
 		if (empty($this->view)) {
@@ -158,10 +178,6 @@ abstract class Controller
 
 	public function getView()
 	{
-		if (empty($this->view)) {
-			$this->view = new $this->viewClass();
-		}
-
 		if ($this->view instanceof IView) {
 			$this->view->assign($this->data);
 			$this->view->assign('error_info', $this->error);
@@ -173,7 +189,7 @@ abstract class Controller
 
 	public final function getActionTemplate($actionName)
 	{
-		if(array_key_exists($actionName, $this->actionTemplates)) {
+		if (array_key_exists($actionName, $this->actionTemplates)) {
 			return $this->actionTemplates[$actionName];
 		} else {
 			return $this->actionTemplates['default'];
@@ -185,10 +201,22 @@ abstract class Controller
 		$this->actionTemplates[$actionName] = $template;
 	}
 
+	public final function getActionPrefix()
+	{
+		return $this->actionPrefix;
+	}
+
+	/**
+	 * default action
+	 * controller must have at list one action
+	 * @abstract
+	 * @var array $data - accepted work parameters or data
+	 */
+	public abstract function actionDefault($data);
+
+	protected abstract function actionDefaultErrorHandler($exc);
 
 	protected abstract function defaultErrorHandler($exc);
-
-	protected abstract function defaultActionErrorHandler($exc);
 
 	protected abstract function dbErrorHandler($exc);
 

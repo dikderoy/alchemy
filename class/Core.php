@@ -70,6 +70,7 @@ class Core extends SingletoneModel implements ISingletone
 				$this->router->parseRequest();
 				Registry::getInstance()->currentController = $this->router->getController();
 				Registry::getInstance()->currentAction = $this->router->getAction();
+				Registry::getInstance()->currentPageId = $this->router->getId();
 			} else {
 				throw new Exception('router class does not implements IRouter interface', 500);
 			}
@@ -97,7 +98,7 @@ class Core extends SingletoneModel implements ISingletone
 			if ($this->error) {
 				$this->initErrorHandler(Registry::get('initException'));
 			} else {
-				$this->output = Controller::runController(Registry::getInstance()->currentController, Registry::getInstance()->currentAction,  $this->router->getId());
+				$this->output = Controller::runController(Registry::getInstance()->currentController, Registry::getInstance()->currentAction, Registry::getInstance()->currentPageId);
 			}
 		} catch (Exception $exc) {
 			$this->output = Controller::runController('ControllerError', $exc->getCode(), $exc);
@@ -106,23 +107,15 @@ class Core extends SingletoneModel implements ISingletone
 
 	public function finish()
 	{
-		if($this->output instanceof IView) {
+		if ($this->output instanceof IView) {
+			if (Registry::getInstance()->showDebug) {
+				$this->output->showDebug($this->router->getParamsArray());
+			}
 			$this->output->displayGenerated();
-		} else {
+		} elseif (!empty($this->output)) {
 			print $this->output;
-		}
-
-		if (Registry::getInstance()->showEnveronmentDebug) {
-			print '<pre>';
-			print_r(Registry::getInstance()->calculateExecutionStatistics());
-			var_dump($_SESSION, $_GET, $_POST, $_COOKIE);
-			print '</pre>';
-		}
-
-		if (Registry::getInstance()->showResponseVardump) {
-			print '<pre>';
-			var_dump($this->output);
-			print '</pre>';
+		} else {
+			throw new Exception('Error 500 : Failed to get View', 500);
 		}
 	}
 

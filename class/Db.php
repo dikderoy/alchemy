@@ -116,7 +116,7 @@ class Db extends SingletoneModel implements ISingletone
 	 */
 	public function setDbParameters($config, $options = array())
 	{
-		if(!($config instanceof BasicConfig)) {
+		if(!($config instanceof Structure)) {
 			return FALSE;
 		}
 

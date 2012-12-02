@@ -38,7 +38,7 @@ abstract class Validate
 
 	public static function isValidObjectName($text)
 	{
-		$ereg = "#^[A-Za-z]+[0-9]*$#";
+		$ereg = "#^[A-Za-z]+[-_A-Za-z0-9]*$#";
 
 		return self::isValidPrototype($ereg, $text);
 	}

@@ -5,14 +5,14 @@
  *
  * @author Deroy
  */
-abstract class BasicConfig
+abstract class Structure
 {
 	/**
 	 * container property - forbidden to use from outside of class
 	 * raises error if accessed from outside
 	 * @var array
 	 */
-	protected $settings = array();
+	protected $__struct = array();
 
 	/**
 	 * @var bool  defines whatever to perform debug operations or not
@@ -22,14 +22,14 @@ abstract class BasicConfig
 
 	public final function __set($name, $value)
 	{
-		if ($name == 'settings') {
+		if ($name == '__struct') {
 			throw new Exception('illegal use of Config::settings property!!!');
 		}
 
 		if (property_exists($this, $name)) {
 			$this->{$name} = $value;
 		} else {
-			$this->settings[$name] = $value;
+			$this->__struct[$name] = $value;
 		}
 	}
 
@@ -39,11 +39,37 @@ abstract class BasicConfig
 			return $this->{$name};
 		}
 
-		if (array_key_exists($name, $this->settings)) {
-			return $this->settings[$name];
+		if (array_key_exists($name, $this->__struct)) {
+			return $this->__struct[$name];
 		}
 
 		return FALSE;
+	}
+
+	public final function __isset($name)
+	{
+		if (property_exists($this, $name)) {
+			return isset($this->{$name});
+		}
+
+		if (array_key_exists($name, $this->__struct)) {
+			return isset($this->__struct[$name]);
+		}
+
+		return FALSE;
+	}
+
+	public final function __unset($name)
+	{
+		if ($name == '__struct') {
+			throw new Exception('illegal use of Config::settings property!!!');
+		}
+
+		if (property_exists($this, $name)) {
+			$this->{$name} = NULL;
+		} else {
+			unset($this->__struct[$name]);
+		}
 	}
 
 	/**
@@ -55,7 +81,7 @@ abstract class BasicConfig
 		if(empty($settings)) {
 			return;
 		}
-		
+
 		foreach ($settings as $key => $value) {
 			$this->{$key} = $value;
 		}

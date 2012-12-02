@@ -14,6 +14,8 @@ interface IView
 
 	public function setTemplateName($name);
 
+	public function getTemplateName();
+
 	public function extend($template);
 
 	/**
@@ -28,4 +30,8 @@ interface IView
 	public function assign($data, $data2 = NULL);
 
 	public function displayGenerated();
+
+	public function showDebug();
+
+	public function isCached($template, $cache_id = NULL, $compile_id = NULL);
 }

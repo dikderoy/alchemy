@@ -7,7 +7,7 @@
  *
  * @author Deroy
  */
-class Config extends BasicConfig
+class Config extends Structure
 {
 
 	public function __construct($settings)
