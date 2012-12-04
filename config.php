@@ -2,6 +2,8 @@
 
 require_once 'class/Autoloader.php';
 
+define("__DBPREFIX__", "af_");
+
 $system_config = array(
 	'rootDirectory' => dirname(__FILE__),
 	// string - defines server address
@@ -30,5 +32,4 @@ $system_config = array(
 	'showResponseVardump' => FALSE,
 	// int - define a lifetime of cookies in seconds
 	'cookiesLifetime' => 40000,
-
 );

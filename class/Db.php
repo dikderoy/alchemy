@@ -512,7 +512,11 @@ class Db extends SingletoneModel implements ISingletone
 			throw new dbException("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$query}\r" . $exc->getMessage(), $exc->getCode());
 		}
 
-		return $statement->fetch();
+		if($statement->rowCount()>0) {
+			return $statement->fetch();
+		}
+
+		return FALSE;
 	}
 
 	public function fetchObject($query, $class, $params = NULL)

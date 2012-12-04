@@ -8,31 +8,74 @@
 abstract class ObjectModel
 {
 
-	public $id;
-	public $name;
+	/**
+	 * defines key of identificator field related to db e.g. name of PRIMARY_ID db field
+	 * @var string
+	 */
+	protected $identificator = 'id';
+
+	/**
+	 * defines whatever object was loaded from DB or just created in PHP
+	 * e.g. does object have its copy in DB or not
+	 * @var bool
+	 */
 	protected $__isLoadedObject = FALSE;
+
+	/**
+	 * defines name of table in DB to wich object is(or must be) releated(saved to)
+	 * @var string
+	 */
 	protected $__dbTable;
+
+	/**
+	 * defines fields of object wich are releated to DB entry
+	 * only fields in this list can be saved to DB as entry
+	 * @var array
+	 */
 	protected $__dbFields = array(
+		'id',
+	);
+
+	/**
+	 * defines validators for DB-releated fiedls from $__dbFields
+	 * keys must match field names and values must match static method names of Validate class
+	 * @uses Validate collection of validators
+	 * @var array
+	 */
+	protected $__dbFieldsValidators = array(
 		'id' => 'isValidObjectId',
-		'name' => 'isValidObjectName'
 	);
 
 	public function __construct($id = NULL)
 	{
-		if (Validate::isValidObjectId($id)) {
-			$statement = Db::getInstance()->select(array_keys($this->__dbFields))->from($this->__dbTable)->where("id = ?")->limit(1)->_exec(TRUE);
-			/*$statement->setFetchMode(PDO::FETCH_INTO, $this);
-			$statement->execute(array($id));
-			$statement->fetch();
-			 */
-			Db::getInstance()->fetchIntoObject($statement, $this,array($id));
-			$this->__isLoadedObject = TRUE;
+		if (isset($this->__dbFieldsValidators[$this->identificator])) {
+			if (call_user_func('Validate::' . $this->__dbFieldsValidators[$this->identificator], $id)) {
+				$error = FALSE;
+			} else {
+				$error = TRUE;
+			}
+		}
+		if (!$error) {
+			$statement = Db::getInstance()->select($this->__dbFields)->from($this->__dbTable)->where("id = ?")->limit(1)->_exec(TRUE);
+			if (Db::getInstance()->fetchIntoObject($statement, $this, array($id))) {
+				$this->__isLoadedObject = TRUE;
+			} else {
+				$this->{$this->identificator} = $id;
+			}
 		}
 	}
 
-	public function add()
+	/**
+	 * add new object entry to DB
+	 * @uses Db DB control class
+	 * @param array $fields - array containing field names - set this if you wish to save only specified fields
+	 * @return boolean
+	 * @throws Exception
+	 */
+	public function add($fields = NULL)
 	{
-		$fields = $this->validateFields($error_fields, TRUE);
+		$error_fields = array();
+		$fields = $this->validateFields($fields, FALSE, $error_fields);
 		if ($fields == FALSE) {
 			throw new Exception(__METHOD__ . " fields: [" . implode(',', $error_fields) . "] do not pass validation");
 		}
@@ -44,12 +87,20 @@ abstract class ObjectModel
 		return FALSE;
 	}
 
-	public function update()
+	/**
+	 * updates existing db entry
+	 * @uses Db DB control class
+	 * @param array $fields - array containing field names - set this if you wish to update only specified fields
+	 * @return boolean
+	 * @throws Exception
+	 */
+	public function update($fields = NULL)
 	{
-		if (empty($this->id)) {
+		if (empty($this->{$this->identificator})) {
 			return FALSE;
 		}
-		$fields = $this->validateFields($error_fields);
+		$error_fields = array();
+		$fields = $this->validateFields($fields, FALSE, $error_fields);
 		if ($fields == FALSE) {
 			throw new Exception(__METHOD__ . " fields: [" . implode(',', $error_fields) . "] do not pass validation");
 		}
@@ -60,39 +111,57 @@ abstract class ObjectModel
 		return FALSE;
 	}
 
-	public function save()
+	/**
+	 * add or update entry in DB - intellyguess
+	 * @param array $fields - array containing field names - set this if you wish to save only specified fields
+	 * @return boolean
+	 */
+	public function save($fields = NULL)
 	{
 		if (empty($this->__dbTable) || empty($this->__dbFields)) {
 			return FALSE;
 		}
-		if (empty($this->id)) {
-			return $this->add();
-		} elseif ($this->__isLoadedObject && !empty ($this->id)) {
-			return $this->update();
+		if (empty($this->{$this->identificator})) {
+			return $this->add($fields);
+		} elseif ($this->__isLoadedObject && !empty($this->{$this->identificator})) {
+			return $this->update($fields);
+		} elseif (!$this->__isLoadedObject && !empty($this->{$this->identificator})) {
+			return $this->add($this->__dbFields);
 		}
 		return FALSE;
 	}
 
+	/**
+	 * delete object entry from DB
+	 * @uses Db DB control class
+	 * @return boolean
+	 */
 	public function delete()
 	{
-		$result = Db::getInstance()->delete($this->__dbTable)->where("id = {$this->id}")->limit(1)->_exec();
+		$result = Db::getInstance()->delete($this->__dbTable)->where("id = {$this->{$this->identificator}}")->limit(1)->_exec();
 		if ($result instanceof PDOStatement && $result->rowCount() > 0) {
 			return TRUE;
 		}
 		return FALSE;
 	}
 
-	public function validateFields(&$error = NULL, $no_id = FALSE)
+	/**
+	 * validates fields before add() and update() operations
+	 * @param array $fields - fields, values of wich should be validated
+	 * @param boolean $with_id (defaults to TRUE) - defines whatever to validate and include identificator field or not
+	 * @param array $error - contain field names wich does not passed validation
+	 * @return boolean|array - array of fields to operate over if they passed validation, FALSE overwise
+	 */
+	public function validateFields($fields = NULL, $with_id = TRUE, &$error = NULL)
 	{
+		//set actual fields array
+		$fields = (empty($fields)) ? $this->__dbFields : $fields;
+
 		$error = array();
 		$success = array();
-		foreach ($this->__dbFields as $field => $validator) {
-			if ($field == 'id' && $no_id) {
-				continue;
-			}
-
-			if (!empty($validator)) {
-				if (!call_user_func("Validate::$validator", $this->{$field})) {
+		foreach ($fields as $field) {
+			if (!empty($this->__dbFieldsValidators[$field])) {
+				if (!call_user_func("Validate::" . $this->__dbFieldsValidators[$field], $this->{$field})) {
 					array_push($error, $field);
 				} else {
 					$success[$field] = $this->{$field};
@@ -100,6 +169,9 @@ abstract class ObjectModel
 			} else {
 				$success[$field] = $this->{$field};
 			}
+		}
+		if ($with_id && call_user_func("Validate::" . $this->__dbFieldsValidators[$this->identificator], $this->{$this->identificator})) {
+			$success[$this->identificator] = $this->{$this->identificator};
 		}
 
 		if (empty($error)) {
@@ -109,6 +181,10 @@ abstract class ObjectModel
 		return FALSE;
 	}
 
+	/**
+	 * converts object to array using $__dbFields list of field names
+	 * @return array
+	 */
 	public function __toArray()
 	{
 		$array = array();
