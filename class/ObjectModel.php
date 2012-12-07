@@ -56,7 +56,7 @@ abstract class ObjectModel
 			}
 		}
 		if (!$error) {
-			$statement = Db::getInstance()->select($this->__dbFields)->from($this->__dbTable)->where("id = ?")->limit(1)->_exec(TRUE);
+			$statement = Db::getInstance()->select($this->__dbFields)->from($this->__dbTable)->where_complex("id = ?")->limit(1)->_exec(TRUE);
 			if (Db::getInstance()->fetchIntoObject($statement, $this, array($id))) {
 				$this->__isLoadedObject = TRUE;
 			} else {
@@ -81,7 +81,7 @@ abstract class ObjectModel
 		}
 		$result = Db::getInstance()->insert($fields)->into($this->__dbTable)->limit(1)->_exec();
 		if ($result instanceof PDOStatement && $result->rowCount() > 0) {
-			$this->id = Db::lastInsertId();
+			$this->id = Db::getLastInsertId();
 			return TRUE;
 		}
 		return FALSE;
@@ -104,7 +104,7 @@ abstract class ObjectModel
 		if ($fields == FALSE) {
 			throw new Exception(__METHOD__ . " fields: [" . implode(',', $error_fields) . "] do not pass validation");
 		}
-		$result = Db::getInstance()->update($this->__dbTable)->set($fields)->where("id = {$this->id}")->limit(1)->_exec();
+		$result = Db::getInstance()->update($this->__dbTable)->set($fields)->where_complex("id = {$this->id}")->limit(1)->_exec();
 		if ($result instanceof PDOStatement && $result->rowCount() > 0) {
 			return TRUE;
 		}
@@ -138,7 +138,7 @@ abstract class ObjectModel
 	 */
 	public function delete()
 	{
-		$result = Db::getInstance()->delete($this->__dbTable)->where("id = {$this->{$this->identificator}}")->limit(1)->_exec();
+		$result = Db::getInstance()->delete($this->__dbTable)->where_complex("id = {$this->{$this->identificator}}")->limit(1)->_exec();
 		if ($result instanceof PDOStatement && $result->rowCount() > 0) {
 			return TRUE;
 		}

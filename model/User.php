@@ -75,7 +75,7 @@ class User extends ObjectModel
 	 */
 	public static function getUserByLogin($word)
 	{
-		$statement = Db::getInstance()->select()->from(__DBPREFIX__."user")->where("login = :login")->limit(1)->_exec(TRUE);
+		$statement = Db::getInstance()->select()->from(__DBPREFIX__."user")->where_complex("login = :login")->limit(1)->_exec(TRUE);
 		$statement->execute(array(':login' => $word));
 		$obj = $statement->fetchObject(get_called_class());
 		//$obj->__isLoadedObject  = TRUE;
@@ -176,7 +176,7 @@ class User extends ObjectModel
 	public function createSecurityToken()
 	{
 		$token = md5(uniqid('kwd_stoken_'.time(), TRUE));
-		$statement = Db::getInstance()->update(__DBPREFIX__."user")->set(array('securityToken'=>$token))->where("uid = :uid")->limit(1)->_exec(TRUE);
+		$statement = Db::getInstance()->update(__DBPREFIX__."user")->set(array('securityToken'=>$token))->where_complex("uid = :uid")->limit(1)->_exec(TRUE);
 
 		if($statement->execute(array(':uid' => $this->uid))) {
 			setcookie("sec_token", $token, time() + KWDConfig::$COOKIE_LIFETIME, '/');
@@ -301,7 +301,7 @@ class User extends ObjectModel
 		$save['firmName']	= $this->firmName;
 		$save['firmType']	= $this->firmType;
 
-		$res = KWDCore::getDBC()->update("kwd_users")->set($save)->where("uid = '{$this->uid}'")->_limit(1)->_exec();
+		$res = KWDCore::getDBC()->update("kwd_users")->set($save)->where_complex("uid = '{$this->uid}'")->_limit(1)->_exec();
 
 		if($res->rowCount() >= 1) {
 			$this->id = KWDCore::getDBC()->getPDO()->lastInsertId();

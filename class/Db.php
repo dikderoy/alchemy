@@ -2,8 +2,16 @@
 
 class Db extends SingletoneModel implements ISingletone
 {
+
+	const Q_TYPE_SELECT = 1;
+	const Q_TYPE_UPDATE = 2;
+	const Q_TYPE_INSERT = 3;
+	const Q_TYPE_DELETE = 4;
+	const SORT_ASC = 5;
+	const SORT_DESC = 6;
+
 	/**
-	 *instance of Db
+	 * instance of Db
 	 * @var Db
 	 */
 	protected static $instance;
@@ -34,58 +42,6 @@ class Db extends SingletoneModel implements ISingletone
 	protected $queryesTotal = 0;
 
 	/**
-	 * holds current (or last) query type
-	 * @var string
-	 */
-	protected $queryType;
-	protected $query;
-
-	/**
-	 * query modificant (e.g. DISTINCT)
-	 * @var string
-	 */
-	protected $modificant;
-
-	/**
-	 * array of cols used in query
-	 * @var array
-	 */
-	protected $what = array();
-
-	/**
-	 * array of tables used in query
-	 * @var array
-	 */
-	protected $tables = array();
-
-	/**
-	 * where conditions used in query
-	 * @var string
-	 */
-	protected $where;
-
-	/**
-	 * orderby clause
-	 * @var array
-	 */
-	protected $orderBy = array();
-	protected $orderDirection = 'ASC';
-
-	/**
-	 * limit section of query
-	 * @var string
-	 */
-	protected $limit;
-
-	/**
-	 * array of values for insert or update queryes
-	 * as key=>value
-	 * @var type
-	 */
-	protected $values = array();
-	protected $readyValueSet = array();
-
-	/**
 	 * returns singleton instance of DB
 	 * @return Db
 	 */
@@ -100,14 +56,15 @@ class Db extends SingletoneModel implements ISingletone
 		} elseif (self::$instance->hasDbParameters()) {
 			self::$instance->connect();
 			return self::$instance;
-		} elseif (!empty ($config)) {
+		} elseif (!empty($config)) {
 			self::$instance->setDbParameters($config);
 			self::$instance->connect();
 			return self::$instance;
 		} else {
 			throw new DbException('error establishing connection to DB');
-			return self::$instance;
 		}
+
+		return self::$instance;
 	}
 
 	/**
@@ -116,7 +73,7 @@ class Db extends SingletoneModel implements ISingletone
 	 */
 	public function setDbParameters($config, $options = array())
 	{
-		if(!($config instanceof Structure)) {
+		if (!($config instanceof Structure)) {
 			return FALSE;
 		}
 
@@ -163,318 +120,35 @@ class Db extends SingletoneModel implements ISingletone
 		}
 	}
 
-	public static function lastInsertId()
+	public static function getLastInsertId()
 	{
 		return self::$instance->PDO->lastInsertId();
 	}
 
 	/**
-	 * sets select clause of query
-	 * accepts array () where:
-	 * each element is column name
-	 *
-	 * or number of arguments each of wich
-	 * is a string defining column name
-	 * @param array $args
-	 * @param $_..
-	 * @return \KWDDB
+	 * returns active PDO object
+	 * @return PDO
 	 */
-	public function select($args = NULL)
+	public static function getPDO()
 	{
-		if (!is_array($args))
-			$args = func_get_args();
-		$this->what = $args;
-		$this->queryType = 'select';
-		return $this;
+		return self::getInstance()->PDO;
 	}
 
 	/**
-	 * sets insert what and values clauses of query
-	 * accepts array of paired values where
-	 * key = field name
-	 * value = field value
-	 * OR
-	 * any number of arrays (structurally identical to each other)
-	 * each of wich is a row in a multirow insert query
-	 * @param array $args
-	 * @return \KWDDB
-	 * @throws Exception
+	 * return queryes counter value
+	 * @return int
 	 */
-	public function insert($all)
+	public function getQueryesTotal()
 	{
-		$all = func_get_args();
-		if (is_array($all[0])) {
-			$this->what = array_keys($all[0]);
-		}
-		foreach ($all as $args) {
-			if (is_array($args)) {
-				array_push($this->values, $args);
-				$this->queryType = 'insert';
-			} else {
-				throw new DbException('SQL error - insert() - args is not an array', E_RECOVERABLE_ERROR);
-			}
-		}
-
-		return $this;
+		return $this->queryesTotal;
 	}
 
-	/**
-	 * sets table to update
-	 * accepts string table name parameter
-	 * @param string $args
-	 * @return \KWDDB
-	 */
-	public function update($args)
+	public function __toString()
 	{
-		$this->queryType = 'update';
-		return $this->from($args);
-	}
-
-	/**
-	 * set values for update
-	 * accepts array of paired values where
-	 * key = field name
-	 * value = field value
-	 * @param array $args (key=>pair)
-	 * @return \KWDDB
-	 * @throws Exception
-	 */
-	public function set($args)
-	{
-		if (is_array($args)) {
-			$this->what = array_keys($args);
-			$this->values = $args;
-		} else {
-			throw new DbException('SQL error - update - set() - args is not an array', E_RECOVERABLE_ERROR);
-		}
-
-		return $this;
-	}
-
-	/**
-	 * set table from wich to delete
-	 * accepts string table name parameter
-	 * @param string $args
-	 * @return \KWDDB
-	 */
-	public function delete($args)
-	{
-		$this->queryType = 'delete';
-		return $this->from($args);
-	}
-
-	/**
-	 * defines tables with witch query will work
-	 * used usualy with select but can be called elsewere
-	 *
-	 * accepts string - table name
-	 * OR
-	 * any number of arguments each of wich
-	 * is a string containing table name
-	 * @param array $args
-	 * @return \KWDDB
-	 */
-	public function from($args)
-	{
-		if (!is_array($args))
-			$args = func_get_args();
-		$this->tables = $args;
-		return $this;
-	}
-
-	/**
-	 * defines tables with witch query will work
-	 * lexical alias to KWDDB::from()
-	 * @uses KWDDB::from()
-	 * @param array $args
-	 * @return \KWDDB
-	 */
-	public function into($args)
-	{
-		return $this->from($args);
-	}
-
-	/**
-	 * write argument contents to where clause
-	 * @param string $cond
-	 * @return \KWDDB
-	 */
-	public function where($cond)
-	{
-		$this->where = $cond;
-		return $this;
-	}
-
-	/**
-	 * sets fields by wich ORDER CLAUSE will work
-	 * accepts array of strings each of wich is field name
-	 * OR
-	 * any number of arguments each of wich is a string contains field name
-	 * @param array $args
-	 * @return \KWDDB
-	 */
-	public function orderBy($args)
-	{
-		if (!is_array($args))
-			$args = func_get_args();
-		$this->orderBy = $args;
-		return $this;
-	}
-
-	/**
-	 * sets the direction of sorting
-	 * default is ASC
-	 *
-	 * accepts strings (ASC | DESC)
-	 * @param string $dir
-	 * @return \KWDDB
-	 */
-	public function orderDirection($dir)
-	{
-		$this->orderDirection = ($dir == 'ASC' || $dir == 'DESC') ? $dir : 'ASC';
-		return $this;
-	}
-
-	/**
-	 * sets limit parameter of query
-	 * accepts int value of limit
-	 * OR
-	 * int value of limit , int value of offset
-	 * @param int $args
-	 * @return \KWDDB
-	 */
-	public function limit($args)
-	{
-		if (!is_array($args))
-			$args = func_get_args();
-		$this->limit = implode(',', $args);
-		return $this;
-	}
-
-	/**
-	 * prepare and execute litteraly formed query
-	 *
-	 * if optional $prepareOnly parameter is set to TRUE
-	 * when query wont be executed immidietly
-	 * instead PDOStatement::prepare() will be called and
-	 * PDOStatement object will be returned with prepared statement
-	 * @param $prepareOnly = FALSE
-	 * @return PDOStatement
-	 */
-	public function _exec($prepareOnly = FALSE)
-	{
-		//set default values to registers
-		$error = 0;
-		$this->readyValueSet = array();
-		//sorting cols alphabetically
-		sort($this->what);
-		//enclose cols and table names in backquots
-		$this->what = array_map(array(__CLASS__,'backquoEnclose'), $this->what);
-		$this->tables = array_map(array(__CLASS__,'backquoEnclose'), $this->tables);
-
-		try {
-			switch ($this->queryType) {
-				case 'select':
-					$mode = (empty($this->modificant)) ? "" : implode(",", $this->modificant);
-					$cols = (empty($this->what)) ? "*" : implode(",", $this->what);
-					$tables = (empty($this->tables)) ? $error = 1 : implode(",", $this->tables);
-					$cond = (empty($this->where)) ? "" : " where " . $this->where;
-					$order = (empty($this->orderBy)) ? "" : " order by " . implode(",", $this->orderBy) . " " . $this->orderDirection;
-					$limit = (empty($this->limit)) ? "" : " limit " . $this->limit;
-
-					$this->query = "select " . $mode . " " . $cols . " from " . $tables . $cond . $order . $limit;
-					break;
-				case 'insert': {
-						$cols = (empty($this->what)) ? "*" : implode(",", $this->what);
-						$tables = (empty($this->tables)) ? $error = 1 : implode(",", $this->tables);
-
-						if (is_array($this->values[0])) {
-							foreach ($this->values as $row) {
-								//sort values array alphabetically by keys
-								ksort($row);
-								//make keys like ":key"
-								if (!$error) {
-									$vals = array();
-									array_walk($row, array(__CLASS__, 'attachKeyColon'), array(&$vals));
-									array_push($this->readyValueSet, $vals);
-								} else {
-									$error = 1;
-									break;
-								}
-							}
-							$values = implode(',', array_keys($vals));
-						} else {
-							$error = 1;
-						}
-
-						$this->query = "insert into $tables($cols) values ($values)";
-						break;
-					}
-				case 'update': {
-						//tables
-						$tables = (empty($this->tables)) ? $error = 1 : implode(",", $this->tables);
-						//set clause
-						$this->what = array_keys($this->values);
-						$set = array();
-						foreach ($this->what as $key) {
-							array_push($set, "`$key` = :$key");
-						}
-						//values array (make indexes like ":key")
-						array_walk($this->values, array(__CLASS__, 'attachKeyColon'), array(&$this->readyValueSet));
-						//where clause
-						$cond = (empty($this->where)) ? "" : " where " . $this->where;
-						$limit = (empty($this->limit)) ? "" : " limit " . $this->limit;
-
-						$this->query = "update " . $tables . " set " . implode(',', $set) . $cond . $limit;
-						break;
-					}
-				case 'delete': {
-						$tables = (empty($this->tables)) ? $error = 1 : implode(",", $this->tables);
-						$cond = (empty($this->where)) ? "" : " where " . $this->where;
-						$limit = (empty($this->limit)) ? "" : " limit " . $this->limit;
-
-						$this->query = "delete from " . $tables . $cond . $limit;
-						break;
-					}
-				default:
-					break;
-			}
-			//cleaning
-			$this->modificant = "";
-			$this->what = array();
-			$this->tables = array();
-			$this->where = "";
-			$this->orderBy = array();
-			$this->orderDirection = 'ASC';
-			$this->limit = NULL;
-			$this->values = array();
-
-			//prepare query
-			$this->lastQuery = $this->PDO->prepare($this->query);
-		} catch (PDOException $exc) {
-			throw new DbException("DB :: " . __METHOD__ . " - Failed to prepare query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
-		}
-
-		try {
-			if (!$prepareOnly) {
-				if (is_array($this->readyValueSet[0])) {
-					foreach ($this->readyValueSet as $params) {
-						$this->lastQuery->execute($params);
-						$this->queryesTotal++;
-					}
-				} else {
-					$this->lastQuery->execute($this->readyValueSet);
-					$this->queryesTotal++;
-				}
-			}
-		} catch (PDOException $exc) {
-			throw new DbException("DB :: " . __METHOD__ . " - Failed to execute query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
-		}
-
 		if ($this->lastQuery instanceof PDOStatement) {
-			return $this->lastQuery;
+			return "last query :: {$this->lastQuery->queryString}; queryes total :: {$this->queryesTotal}";
 		} else {
-			throw new DbException("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$this->query}", E_RECOVERABLE_ERROR);
+			return "queryes total :: {$this->queryesTotal}";
 		}
 	}
 
@@ -498,7 +172,7 @@ class Db extends SingletoneModel implements ISingletone
 	public function fetchIntoObject($query, $obj, $params = NULL)
 	{
 		try {
-			if($query instanceof PDOStatement) {
+			if ($query instanceof PDOStatement) {
 				$statement = $query;
 			} else {
 				$statement = $this->PDO->prepare($query);
@@ -506,13 +180,13 @@ class Db extends SingletoneModel implements ISingletone
 			$statement->setFetchMode(PDO::FETCH_INTO, $obj);
 			$statement->execute($params);
 		} catch (PDOException $exc) {
-			if($query instanceof PDOStatement) {
+			if ($query instanceof PDOStatement) {
 				$query = $query->queryString;
 			}
 			throw new dbException("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$query}\r" . $exc->getMessage(), $exc->getCode());
 		}
 
-		if($statement->rowCount()>0) {
+		if ($statement->rowCount() > 0) {
 			return $statement->fetch();
 		}
 
@@ -540,7 +214,7 @@ class Db extends SingletoneModel implements ISingletone
 
 	public static function quoEnclose($elem)
 	{
-		$elem = $this->PDO->quote($elem);
+		$elem = self::$instance->PDO->quote($elem);
 		return $elem;
 	}
 
@@ -555,33 +229,6 @@ class Db extends SingletoneModel implements ISingletone
 		$elem = htmlspecialchars($elem);
 		//$elem = mysql_real_escape_string($elem, $adapter);
 		return $elem;
-	}
-
-	/**
-	 * returns active PDO object
-	 * @return PDO
-	 */
-	public function getPDO()
-	{
-		return $this->PDO;
-	}
-
-	/**
-	 * return queryes counter value
-	 * @return int
-	 */
-	public function getQueryesTotal()
-	{
-		return $this->queryesTotal;
-	}
-
-	public function __toString()
-	{
-		if ($this->lastQuery instanceof PDOStatement) {
-			return "last query :: {$this->lastQuery->queryString}; queryes total :: {$this->queryesTotal}";
-		} else {
-			return "queryes total :: {$this->queryesTotal}";
-		}
 	}
 
 	public static function backquoEnclose($elem)
