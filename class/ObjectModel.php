@@ -1,9 +1,13 @@
 <?php
 
 /**
- * Description of ObjectModel
+ * ActiveRecord presentation class
  *
- * @author Deroy
+ * @category Object Representation Set
+ * @package Alchemy Framework
+ * @version 2.0.0
+ * @author Deroy aka Roman Bulgakov
+ * @uses Db Database control set
  */
 abstract class ObjectModel
 {
@@ -49,15 +53,11 @@ abstract class ObjectModel
 	public function __construct($id = NULL)
 	{
 		if (isset($this->__dbFieldsValidators[$this->identificator])) {
-			if (call_user_func('Validate::' . $this->__dbFieldsValidators[$this->identificator], $id)) {
-				$error = FALSE;
-			} else {
-				$error = TRUE;
-			}
+			$error = !call_user_func('Validate::' . $this->__dbFieldsValidators[$this->identificator], $id);
 		}
 		if (!$error) {
-			$statement = Db::getInstance()->select($this->__dbFields)->from($this->__dbTable)->where_complex("id = ?")->limit(1)->_exec(TRUE);
-			if (Db::getInstance()->fetchIntoObject($statement, $this, array($id))) {
+			$q = Db::select($this->__dbFields)->from($this->__dbTable)->where(array($this->identificator => $id))->limit(1)->execute();
+			if ($q->fetchIntoObject($this)) {
 				$this->__isLoadedObject = TRUE;
 			} else {
 				$this->{$this->identificator} = $id;
@@ -72,15 +72,15 @@ abstract class ObjectModel
 	 * @return boolean
 	 * @throws Exception
 	 */
-	public function add($fields = NULL)
+	public function add($fields = NULL, $with_id = FALSE)
 	{
 		$error_fields = array();
-		$fields = $this->validateFields($fields, FALSE, $error_fields);
+		$fields = $this->validateFields($fields, $with_id, $error_fields);
 		if ($fields == FALSE) {
 			throw new Exception(__METHOD__ . " fields: [" . implode(',', $error_fields) . "] do not pass validation");
 		}
-		$result = Db::getInstance()->insert($fields)->into($this->__dbTable)->limit(1)->_exec();
-		if ($result instanceof PDOStatement && $result->rowCount() > 0) {
+		$result = Db::insert($fields)->into($this->__dbTable)->limit(1)->execute();
+		if ($result->rowsAffected() > 0) {
 			$this->id = Db::getLastInsertId();
 			return TRUE;
 		}
@@ -104,8 +104,8 @@ abstract class ObjectModel
 		if ($fields == FALSE) {
 			throw new Exception(__METHOD__ . " fields: [" . implode(',', $error_fields) . "] do not pass validation");
 		}
-		$result = Db::getInstance()->update($this->__dbTable)->set($fields)->where_complex("id = {$this->id}")->limit(1)->_exec();
-		if ($result instanceof PDOStatement && $result->rowCount() > 0) {
+		$result = Db::update($this->__dbTable)->set($fields)->where(array($this->identificator => $this->{$this->identificator}))->limit(1)->execute();
+		if ($result->rowsAffected() > 0) {
 			return TRUE;
 		}
 		return FALSE;
@@ -126,7 +126,7 @@ abstract class ObjectModel
 		} elseif ($this->__isLoadedObject && !empty($this->{$this->identificator})) {
 			return $this->update($fields);
 		} elseif (!$this->__isLoadedObject && !empty($this->{$this->identificator})) {
-			return $this->add($this->__dbFields);
+			return $this->add($fields, TRUE);
 		}
 		return FALSE;
 	}
@@ -138,8 +138,11 @@ abstract class ObjectModel
 	 */
 	public function delete()
 	{
-		$result = Db::getInstance()->delete($this->__dbTable)->where_complex("id = {$this->{$this->identificator}}")->limit(1)->_exec();
-		if ($result instanceof PDOStatement && $result->rowCount() > 0) {
+		if (empty($this->{$this->identificator})) {
+			return FALSE;
+		}
+		$result = Db::delete($this->__dbTable)->where(array($this->identificator => $this->{$this->identificator}))->execute();
+		if ($result->rowsAffected() > 0) {
 			return TRUE;
 		}
 		return FALSE;
@@ -160,6 +163,10 @@ abstract class ObjectModel
 		$error = array();
 		$success = array();
 		foreach ($fields as $field) {
+			if (!$with_id && $field === $this->identificator) {
+				continue;
+			}
+
 			if (!empty($this->__dbFieldsValidators[$field])) {
 				if (!call_user_func("Validate::" . $this->__dbFieldsValidators[$field], $this->{$field})) {
 					array_push($error, $field);
@@ -170,9 +177,6 @@ abstract class ObjectModel
 				$success[$field] = $this->{$field};
 			}
 		}
-		if ($with_id && call_user_func("Validate::" . $this->__dbFieldsValidators[$this->identificator], $this->{$this->identificator})) {
-			$success[$this->identificator] = $this->{$this->identificator};
-		}
 
 		if (empty($error)) {
 			return $success;
@@ -182,17 +186,18 @@ abstract class ObjectModel
 	}
 
 	/**
-	 * converts object to array using $__dbFields list of field names
+	 * converts object to array using $__dbFields list of field names by default
+	 * or given array as list of fields
+	 * @param array $fields list of fields to convert (default is __dbFields)
 	 * @return array
 	 */
-	public function __toArray()
+	public function __toArray($fields)
 	{
 		$array = array();
-
-		foreach ($this->__dbFields as $field => $value) {
+		$fields = (empty($fields)) ? $this->__dbFields : $fields;
+		foreach ($fields as $field) {
 			$array[$field] = $this->{$field};
 		}
-
 		return $array;
 	}
 

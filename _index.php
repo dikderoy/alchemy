@@ -1,5 +1,5 @@
 <pre>
-	<?php
+<?php
 	require_once 'config.php';
 
 	class TestModel extends ObjectModel
@@ -30,23 +30,32 @@
 		Db::getInstance($c);
 		//var_dump(Db::getInstance());
 
-
-		$obj = new TestModel(10);
-		echo "obj after create::\r\n";
+		$storage = new TestModel(1);
+		echo "previous stored id:";
+		echo $prev_sid = $storage->data;
+		$obj = new TestModel();
+		echo "\r\nobj after create::\r";
 		var_dump($obj);
 		$obj->name = 'ObjectName' . uniqid();
 		$obj->data = uniqid();
-		echo "obj after change::\r\n";
+		echo "obj after change::\r";
 		var_dump($obj);
 		echo "save res::";
-		var_dump($obj->save(array('data')));
+		var_dump($obj->save());
+		$storage->data = $obj->id;
+		$storage->save();
 
 		echo "obj reloaded from db:\r\n";
-		$reloaded_obj = new TestModel(10);
+		$reloaded_obj = new TestModel($obj->id);
 		var_dump($reloaded_obj);
+
+		echo "del res::";
+		$reloaded_obj = new TestModel($prev_sid);
+		var_dump($reloaded_obj->delete());
+
+
 	} catch (Exception $exc) {
 		echo $exc->getTraceAsString();
 		echo $exc->getMessage();
 	}
-	?>
-</pre>
+?>

@@ -1,14 +1,28 @@
 <?php
 
+/**
+ * Create, Manage and Control database structures in MySQL
+ * using PDO
+ *
+ * @category Database Control Set
+ * @package Alchemy Framework
+ * @version 2.0.0
+ * @author Deroy aka Roman Bulgakov
+ * @uses PDO PHP Data Objects class
+ * @uses PDOException PDO exception class to catch PDO exceptions
+ * @uses DbQuery support query management class
+ * @uses DbException exception class
+ */
 class Db extends SingletoneModel implements ISingletone
 {
 
-	const Q_TYPE_SELECT = 1;
-	const Q_TYPE_UPDATE = 2;
-	const Q_TYPE_INSERT = 3;
-	const Q_TYPE_DELETE = 4;
-	const SORT_ASC = 5;
-	const SORT_DESC = 6;
+	const Q_TYPE_FREEFORM = 1;
+	const Q_TYPE_SELECT = 2;
+	const Q_TYPE_UPDATE = 3;
+	const Q_TYPE_INSERT = 4;
+	const Q_TYPE_DELETE = 5;
+	const SORT_ASC = 6;
+	const SORT_DESC = 7;
 
 	/**
 	 * instance of Db
@@ -30,8 +44,8 @@ class Db extends SingletoneModel implements ISingletone
 	protected $options = array();
 
 	/**
-	 * last executed query result
-	 * @var PDOStatement
+	 * last executed query result object
+	 * @var DbQuery
 	 */
 	public $lastQuery;
 
@@ -39,7 +53,7 @@ class Db extends SingletoneModel implements ISingletone
 	 * keeps track how much querys was executed by this instance
 	 * @var int
 	 */
-	protected $queryesTotal = 0;
+	protected $queriesTotal = 0;
 
 	/**
 	 * returns singleton instance of DB
@@ -135,81 +149,98 @@ class Db extends SingletoneModel implements ISingletone
 	}
 
 	/**
-	 * return queryes counter value
+	 * return queries counter value
 	 * @return int
 	 */
 	public function getQueryesTotal()
 	{
-		return $this->queryesTotal;
+		return $this->queriesTotal;
+	}
+
+	/**
+	 * add queryes reported by $o to query counter value
+	 * @param DbQuery $o
+	 */
+	public function reportQueryes(DbQuery $o)
+	{
+		$this->queriesTotal += $o->getExecuteCount();
 	}
 
 	public function __toString()
 	{
-		if ($this->lastQuery instanceof PDOStatement) {
-			return "last query :: {$this->lastQuery->queryString}; queryes total :: {$this->queryesTotal}";
-		} else {
-			return "queryes total :: {$this->queryesTotal}";
-		}
+		return "queryes total :: {$this->queriesTotal}";
 	}
 
 	/**
-	 * execute single query
+	 * execute freeform instant query without preparation
 	 * @param string $query
-	 * @return PDOStatement
+	 * @return DbQuery
 	 */
-	public function execute($query)
+	public static function query($query)
 	{
-		try {
-			$this->lastQuery = $this->PDO->query($query);
-			$this->queryesTotal++;
-		} catch (PDOException $exc) {
-			throw new DbException("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
-		}
-
-		return $this->lastQuery;
+		self::getInstance()->lastQuery = new DbQuery();
+		return self::getInstance()->lastQuery->instantExecute($query);
 	}
 
-	public function fetchIntoObject($query, $obj, $params = NULL)
+	/**
+	 * start construction of select
+	 *
+	 * sets select clause of query
+	 * accepts array () where:
+	 * each element is column name
+	 * @param array $args
+	 * @param $_..
+	 * @return DbQuery
+	 */
+	public static function select($args = NULL)
 	{
-		try {
-			if ($query instanceof PDOStatement) {
-				$statement = $query;
-			} else {
-				$statement = $this->PDO->prepare($query);
-			}
-			$statement->setFetchMode(PDO::FETCH_INTO, $obj);
-			$statement->execute($params);
-		} catch (PDOException $exc) {
-			if ($query instanceof PDOStatement) {
-				$query = $query->queryString;
-			}
-			throw new dbException("DB :: " . __METHOD__ . " - Failed to prepare and execute query :: {$query}\r" . $exc->getMessage(), $exc->getCode());
-		}
-
-		if ($statement->rowCount() > 0) {
-			return $statement->fetch();
-		}
-
-		return FALSE;
+		self::$instance->lastQuery = new DbQuery();
+		return self::$instance->lastQuery->select($args);
 	}
 
-	public function fetchObject($query, $class, $params = NULL)
+	/**
+	 * start construction of insert
+	 *
+	 * sets insert what and values clauses of query
+	 * accepts array of paired values where
+	 * key = field name
+	 * value = field value
+	 * @param array $args
+	 * @return DbQuery
+	 * @throws DbException
+	 */
+	public static function insert($args)
 	{
-		$data = $this->execute($query);
-		return $data->fetchObject($class, $params);
+		self::$instance->lastQuery = new DbQuery();
+		return self::$instance->lastQuery->insert($args);
 	}
 
-	public function fetchObjectsArray($query, $class, $params = NULL)
+	/**
+	 * start construction of update
+	 *
+	 * sets table to update
+	 * accepts string table name parameter
+	 * @param string $args
+	 * @return DbQuery
+	 */
+	public static function update($args)
 	{
-		$data = $this->execute($query);
-		return $data->fetchAll(PDO::FETCH_CLASS, $class, $params);
+		self::$instance->lastQuery = new DbQuery();
+		return self::$instance->lastQuery->update($args);
 	}
 
-	public function fetchArray($query, $wnum = FALSE)
+	/**
+	 * start construction of delete
+	 *
+	 * set table from wich to delete
+	 * accepts string table name parameter
+	 * @param string $args
+	 * @return DbQuery
+	 */
+	public static function delete($args)
 	{
-		$data = $this->execute($query);
-		$wnum = ($wnum) ? PDO::FETCH_BOTH : PDO::FETCH_ASSOC;
-		return $data->fetchAll($wnum);
+		self::$instance->lastQuery = new DbQuery();
+		return self::$instance->lastQuery->delete($args);
 	}
 
 	public static function quoEnclose($elem)

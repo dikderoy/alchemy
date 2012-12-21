@@ -1,10 +1,19 @@
 <?php
 
 /**
- * Description of DbQuery
+ * Class representing a single prepared or executed query
+ * wrapper for PDOStatement object
  *
- * @author Deroy
- */
+ * provides a set of methods to construct, prepare and execute SQL queries
+ * and fetch results in different forms
+ *
+ * @category Database Control Set
+ * @package Alchemy Framework
+ * @version 1.0.0
+ * @author Deroy aka Roman Bulgakov
+ * @uses Db main db control class
+ * @uses DbException exception class
+  */
 class DbQuery
 {
 
@@ -13,6 +22,12 @@ class DbQuery
 	 * @var PDOStatement
 	 */
 	protected $statement;
+
+	/**
+	 * holds count of executes of statement since it was prepared last time
+	 * @var integer
+	 */
+	protected $executeCount = 0;
 
 	/**
 	 * current (or last) query type
@@ -96,6 +111,107 @@ class DbQuery
 	protected $readyValueSet = array();
 
 	/**
+	 * returns PDOStatement object for direct use
+	 * or FALSE if current instance of DbQuery doesnt have prepared object
+	 * @return PDOStatement
+	 */
+	public function getSTO()
+	{
+		if($this->isPrepared()) {
+			return $this->statement;
+		}
+		return FALSE;
+	}
+
+	/**
+	 * returns count of queryes executed by this instance of DbQuery
+	 * @return integer
+	 */
+	public function getExecuteCount()
+	{
+		return $this->executeCount;
+	}
+
+	/**
+	 * returns formed or prepared (if statement exists) query string
+	 * @return string
+	 */
+	public function getQueryString()
+	{
+		if($this->isPrepared()) {
+			return $this->statement->queryString;
+		}
+		return $this->query;
+	}
+
+
+	/**
+	 * indicates whatever query is forged with __make()
+	 * and data is accumulated in $readyValueSet and $whereValueSet
+	 * @return boolean
+	 */
+	public function isForged()
+	{
+		if (!empty($this->query)) {
+			return TRUE;
+		}
+		return FALSE;
+	}
+
+	/**
+	 * indicates whatever statement is prepared or not
+	 * @return boolean
+	 */
+	public function isPrepared()
+	{
+		if ($this->statement instanceof PDOStatement) {
+			return TRUE;
+		}
+
+		return FALSE;
+	}
+
+	/**
+	 * indicates whatever statement was executed or not
+	 * @var boolean
+	 */
+	public function isExecuted()
+	{
+		if($this->isPrepared() && $this->executeCount > 0) {
+			return TRUE;
+		}
+
+		return FALSE;
+	}
+
+	/**
+	 * destructor of class object
+	 * reports number of executed queries to Db class when called
+	 * @uses Db main db control class
+	 */
+	public function __destruct()
+	{
+		if($this->isExecuted()) {
+			$this->statement->closeCursor();
+		}
+		Db::getInstance()->reportQueryes($this);
+	}
+
+	/**
+	 * sets $queryString as query to be prepared
+	 * correct behavior depends on provided $queryString
+	 * @param string $queryString
+	 * @return DbQuery
+	 */
+	public function freeFormQuery($queryString)
+	{
+		$this->queryType = Db::Q_TYPE_FREEFORM;
+		$this->query = $queryString;
+
+		return $this;
+	}
+
+	/**
 	 * sets select clause of query
 	 * accepts array () where:
 	 * each element is column name
@@ -127,19 +243,19 @@ class DbQuery
 	 * @return DbQuery
 	 * @throws DbException
 	 */
-	public function insert($all)
+	public function insert($args)
 	{
-		$all = func_get_args();
-		foreach ($all as $args) {
-			if (is_array($args)) {
-				array_push($this->values, $args);
+		$args = func_get_args();
+		foreach ($args as $arg) {
+			if (is_array($arg)) {
+				array_push($this->values, $arg);
 				$this->queryType = Db::Q_TYPE_INSERT;
 			} else {
 				throw new DbException('SQL error - insert() - args is not an array', E_RECOVERABLE_ERROR);
 			}
 		}
 
-		$this->what = array_keys($args);
+		$this->what = array_keys($arg);
 
 		return $this;
 	}
@@ -209,8 +325,8 @@ class DbQuery
 
 	/**
 	 * defines tables with witch query will work
-	 * lexical alias to KWDDB::from()
-	 * @uses KWDDB::from()
+	 * lexical alias to from()
+	 * @uses DbQuery::from()
 	 * @param array $args
 	 * @return DbQuery
 	 */
@@ -223,11 +339,13 @@ class DbQuery
 	 * write argument contents to where clause
 	 * for complex WHERE conditions
 	 * @param string $cond
+	 * @param array $args data to pass as where section parameters
 	 * @return DbQuery
 	 */
-	public function where_complex($cond)
+	public function whereComplex($cond, $args = array())
 	{
 		$this->where = $cond;
+		$this->whereValueSet = $args;
 		return $this;
 	}
 
@@ -302,6 +420,11 @@ class DbQuery
 		return $this;
 	}
 
+	/**
+	 * constructs query of type SELECT
+	 * INTERNAL USE ONLY
+	 * @return string forged query
+	 */
 	protected function __select()
 	{
 		//SELECT HOW?
@@ -317,29 +440,27 @@ class DbQuery
 		//HOW MUCH?
 		$limit = $this->__limit();
 
-		if ($error) {
-			return FALSE;
-		}
 		return $this->query = "select " . $mode . " " . $cols . " from " . $tables . $cond . $order . $limit;
 	}
 
+	/**
+	 * constructs query of type INSERT
+	 * INTERNAL USE ONLY
+	 * @return string forged query
+	 */
 	protected function __insert()
 	{
 		$cols = (empty($this->what)) ? "*" : implode(",", $this->what);
 		$tables = $this->__tables();
 
-		if (is_array($this->values[0]) && !$error) {
+		if (is_array($this->values[0])) {
 			foreach ($this->values as $row) {
 				//sort values array alphabetically by keys
 				ksort($row);
 				//make keys like ":key"
-				if (!$error) {
-					$vals = array();
-					array_walk($row, array('Db', 'attachKeyColon'), array(&$vals));
-					array_push($this->readyValueSet, $vals);
-				} else {
-					break;
-				}
+				$vals = array();
+				array_walk($row, array('Db', 'attachKeyColon'), array(&$vals));
+				array_push($this->readyValueSet, $vals);
 			}
 			$values = implode(',', array_keys($vals));
 		} else {
@@ -348,6 +469,11 @@ class DbQuery
 		return $this->query = "insert into $tables($cols) values ($values)";
 	}
 
+	/**
+	 * constructs query of type UPDATE
+	 * INTERNAL USE ONLY
+	 * @return string forged query
+	 */
 	protected function __update()
 	{
 		//tables
@@ -367,6 +493,11 @@ class DbQuery
 		return $this->query = "update " . $tables . " set " . implode(',', $set) . $cond . $limit;
 	}
 
+	/**
+	 * constructs query of type DELETE
+	 * INTERNAL USE ONLY
+	 * @return string forged query
+	 */
 	protected function __delete()
 	{
 		$tables = $this->__tables();
@@ -378,7 +509,9 @@ class DbQuery
 
 	/**
 	 * fetches TABLE section string for all kinds of queries
-	 * @return boolean|string
+	 * INTERNAL USE ONLY
+	 * @return string
+	 * @throws DbException
 	 */
 	protected function __tables()
 	{
@@ -389,6 +522,12 @@ class DbQuery
 		throw new DbException('unexpected value of FROM/INTO clause - may cause undefined behavior', E_PARSE);
 	}
 
+	/**
+	 * fetches WHERE clause for SELECT, UPDATE and DELETE queries
+	 * INTERNAL USE ONLY
+	 * @return string
+	 * @throws DbException
+	 */
 	protected function __where()
 	{
 		if (empty($this->where)) {
@@ -400,6 +539,8 @@ class DbQuery
 					array_push($set, "`$key` = :w_$key");
 				} elseif (is_string($value)) {
 					array_push($set, "`$key` like :w_{$key}");
+				} elseif (is_null($value)) {
+					throw new DbException('unexpected value of WHERE clause - may cause undefined behavior', E_PARSE);
 				}
 				//make indexes like ":w_key"
 				$this->whereValueSet[":w_$key"] = $value;
@@ -412,6 +553,12 @@ class DbQuery
 		throw new DbException('unexpected value of WHERE clause - may cause undefined behavior', E_PARSE);
 	}
 
+	/**
+	 * fetches LIMIT clause for SELECT, UPDATE and DELETE queries
+	 * INTERNAL USE ONLY
+	 * @return string
+	 * @throws DbException
+	 */
 	protected function __limit()
 	{
 		if (empty($this->limit)) {
@@ -424,6 +571,17 @@ class DbQuery
 		throw new DbException('unexpected value of LIMIT clause - may cause undefined behavior', E_PARSE);
 	}
 
+	public function fetchQueryString()
+	{
+		return $this->__make();
+	}
+
+	/**
+	 * forges query depending on data collected by construct methods
+	 * select, update, insert, delete, freeform and helpers
+	 * @return boolean|string
+	 * @throws DbException
+	 */
 	protected function __make()
 	{
 
@@ -436,6 +594,11 @@ class DbQuery
 		$this->what = array_map(array('Db', 'backquoEnclose'), $this->what);
 		try {
 			switch ($this->queryType) {
+				case Db::Q_TYPE_FREEFORM:
+					if(empty($this->query)) {
+						throw new DbException("FREEFORM query error - query is empty!", E_PARSE);
+					}
+					break;
 				case Db::Q_TYPE_SELECT:
 					$this->__select();
 					break;
@@ -450,21 +613,8 @@ class DbQuery
 				default:
 					break;
 			}
-			//cleaning
-			$this->modificant = "";
-			$this->what = array();
-			$this->tables = array();
-			$this->where = "";
-			$this->orderBy = array();
-			$this->orderDirection = 'ASC';
-			$this->limit = NULL;
-			$this->values = array();
 
-			//prepare query
-			$statement = Db::getPDO()->prepare($this->query);
-			return $statement;
-		} catch (PDOException $exc) {
-			throw new DbException("DB :: " . __METHOD__ . " - Failed to prepare query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
+			return $this->query;
 		} catch (DbException $exc) {
 			throw $exc;
 		}
@@ -473,25 +623,55 @@ class DbQuery
 	}
 
 	/**
-	 * prepares statement
-	 * use this if you wish to use prepared PDOStatement object properties
-	 * @return PDOStatement
+	 * clears data stored in registers for query forge operation
 	 */
-	public function prepare()
+	public function clearQueryData()
 	{
-		return $this->statement = $this->__make();
+		if($this->isExecuted()) {
+			$this->statement->closeCursor();
+		}
+
+		$this->modificant = "";
+		$this->what = array();
+		$this->tables = array();
+		$this->where = "";
+		$this->orderBy = array();
+		$this->orderDirection = 'ASC';
+		$this->limit = NULL;
+		$this->values = array();
+		$this->readyValueSet = array();
+		$this->whereValueSet = array();
+
+		$this->executeCount = 0;
 	}
 
 	/**
-	 * executes statement previosly prepared with proteceted __make() or public prepare()
+	 * prepares statement
+	 * @return DbQuery
+	 */
+	public function prepare($forcePrepare = FALSE)
+	{
+		try {
+			if ($forcePrepare || !$this->isPrepared()) {
+				$this->__make();
+				$this->statement = Db::getPDO()->prepare($this->query);
+			}
+			return $this;
+		} catch (PDOException $exc) {
+			throw new DbException("DB :: " . __METHOD__ . " - Failed to prepare query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
+		}
+	}
+
+	/**
+	 * executes statement previosly prepared with prepare()
 	 *
 	 * @param array $values [optional] if given used as valueSet
-	 * @return PDOStatement
+	 * @return DbQuery
 	 * @throws DbException
 	 */
-	public function execute_prepared($valueSet = NULL)
+	public function executePrepared($valueSet = NULL)
 	{
-		if (!($this->statement instanceof PDOStatement)) {
+		if (!$this->isPrepared()) {
 			return FALSE;
 		}
 
@@ -502,24 +682,109 @@ class DbQuery
 			if ($this->queryType === Db::Q_TYPE_INSERT && is_array($valueSet[0])) {
 				foreach ($valueSet as $params) {
 					$this->statement->execute($params);
+					$this->executeCount++;
 				}
 			} else {
 				$this->statement->execute($valueSet);
+				$this->executeCount++;
 			}
 		} catch (PDOException $exc) {
 			throw new DbException("DB :: " . __METHOD__ . " - Failed to execute query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
 		}
 
-		return $this->statement;
+		return $this;
 	}
 
 	/**
 	 * prepares and executes a statement
+	 * @param array $valueSet array containing all values what must be placed into prepared query as userdata
+	 * @return DbQuery
 	 */
-	public function execute()
+	public function execute($valueSet = NULL)
 	{
 		$this->prepare();
-		return $this->execute_prepared();
+		return $this->executePrepared($valueSet);
+	}
+
+	/**
+	 * instantly executes passed query
+	 * correct behavior depends on query string passed
+	 * @param string $query
+	 * @throws DbException
+	 */
+	public function instantExecute($query)
+	{
+		try {
+			$this->statement = Db::getPDO()->query($query);
+			$this->executeCount++;
+			return $this;
+		} catch (PDOException $exc) {
+			throw new DbException("Db::failed to prepare and execute instant query: `$query`", E_RECOVERABLE_ERROR, $exc);
+		}
+	}
+
+	/**
+	 * pass query result into existing object instance
+	 * @param ObjectModel $obj - object to fetch into
+	 * @return boolean
+	 */
+	public function fetchIntoObject($obj)
+	{
+		if ($this->isExecuted()) {
+			$this->statement->setFetchMode(PDO::FETCH_INTO, $obj);
+			return $this->statement->fetch();
+		}
+		return FALSE;
+	}
+
+	/**
+	 * fetch query result as an object of given class
+	 * @param string $class name of class wich instance should be returned
+	 * @param array $params array of parameters passed to class constructor
+	 * @return \boolean|object
+	 */
+	public function fetchObject($class, $params = NULL)
+	{
+		if ($this->isExecuted()) {
+			return $this->statement->fetchObject($class, $params);
+		}
+		return FALSE;
+	}
+
+	/**
+	 * fetch results of query as array of objects of given class
+	 * @param string $class name of class wich instance should be returned
+	 * @param array $params array of parameters passed to class constructor
+	 * @return \boolean|array
+	 */
+	public function fetchObjectsArray($class, $params = NULL)
+	{
+		if ($this->isExecuted()) {
+			return $this->statement->fetchAll(PDO::FETCH_CLASS, $class, $params);
+		}
+		return FALSE;
+	}
+
+	/**
+	 * fetch results of query as array of key-paired values
+	 * @param boolean $wnum fetch with numerical keys or not
+	 * @return boolean
+	 */
+	public function fetchArray($wnum = FALSE)
+	{
+		if ($this->isExecuted()) {
+			$wnum = ($wnum) ? PDO::FETCH_BOTH : PDO::FETCH_ASSOC;
+			return $this->statement->fetchAll($wnum);
+		}
+		return FALSE;
+	}
+
+	public function rowsAffected()
+	{
+		if($this->isExecuted()) {
+			return $this->statement->rowCount();
+		}
+		return 0;
 	}
 
 }
