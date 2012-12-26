@@ -11,6 +11,22 @@
  */
 abstract class ObjectModel
 {
+	/* field's property names for definition collection */
+
+	const FP_VALIDATOR = 1;
+	const FP_CONSERVATOR = 2;
+	const FP_DECONSERVATOR = 3;
+	const FP_TYPE = 4;
+	const FP_SIZE = 5;
+	const FP_REQUIRED = 6;
+
+	/* type definitions */
+	const F_TYPE_INT = 7;
+	const F_TYPE_STRING = 8;
+	const F_TYPE_BOOL = 9;
+	const F_TYPE_ARRAY = 10;
+	const F_TYPE_OBJECT = 11;
+	const F_TYPE_ANY = 12;
 
 	/**
 	 * defines key of identificator field related to db e.g. name of PRIMARY_ID db field
@@ -36,30 +52,45 @@ abstract class ObjectModel
 	 * only fields in this list can be saved to DB as entry
 	 * @var array
 	 */
-	protected $__dbFields = array(
-		'id',
+	protected $__dbFields = array();
+
+	/**
+	 * holds definitions for each DB releated field of object
+	 * validation and preparation behavior depends on this property
+	 * @var array collection
+	 */
+	protected $__fieldDefinitions = array(
+		'id' => array(
+			self::FP_TYPE => self::F_TYPE_INT,
+			self::FP_SIZE => 64,
+			self::FP_VALIDATOR => 'isValidObjectId',
+			self::FP_REQUIRED => TRUE
+		)
 	);
 
 	/**
-	 * defines validators for DB-releated fiedls from $__dbFields
-	 * keys must match field names and values must match static method names of Validate class
-	 * @uses Validate collection of validators
-	 * @var array
+	 * constructs new object,
+	 * if $id given - tries to load releated entry from DB
+	 * @param mixed $id
 	 */
-	protected $__dbFieldsValidators = array(
-		'id' => 'isValidObjectId',
-	);
-
 	public function __construct($id = NULL)
 	{
-		if (isset($this->__dbFieldsValidators[$this->identificator])) {
-			$error = !call_user_func('Validate::' . $this->__dbFieldsValidators[$this->identificator], $id);
+		//retrieve list of field names defined as db-releated
+		$this->__dbFields = array_keys($this->__fieldDefinitions);
+
+		if (empty($id)) {
+			$error = TRUE;
+		} elseif (isset($this->__fieldDefinitions[$this->identificator][self::FP_VALIDATOR])) {
+			$error = !call_user_func('Validate::' . $this->__fieldDefinitions[$this->identificator][self::FP_VALIDATOR], $id);
 		}
 		if (!$error) {
 			$q = Db::select($this->__dbFields)->from($this->__dbTable)->where(array($this->identificator => $id))->limit(1)->execute();
 			if ($q->fetchIntoObject($this)) {
+				//if ok set object as loaded and deconservate fields
 				$this->__isLoadedObject = TRUE;
+				$this->deconservateFields();
 			} else {
+				//just assign id to identificator field
 				$this->{$this->identificator} = $id;
 			}
 		}
@@ -69,16 +100,13 @@ abstract class ObjectModel
 	 * add new object entry to DB
 	 * @uses Db DB control class
 	 * @param array $fields - array containing field names - set this if you wish to save only specified fields
+	 * @param boolean $includeID - whatever to save custom ID to DB
 	 * @return boolean
 	 * @throws Exception
 	 */
-	public function add($fields = NULL, $with_id = FALSE)
+	public function add($fields = NULL, $includeID = FALSE)
 	{
-		$error_fields = array();
-		$fields = $this->validateFields($fields, $with_id, $error_fields);
-		if ($fields == FALSE) {
-			throw new Exception(__METHOD__ . " fields: [" . implode(',', $error_fields) . "] do not pass validation");
-		}
+		$fields = $this->getPreparedFieldCollection($fields, $includeID);
 		$result = Db::insert($fields)->into($this->__dbTable)->limit(1)->execute();
 		if ($result->rowsAffected() > 0) {
 			$this->id = Db::getLastInsertId();
@@ -99,11 +127,7 @@ abstract class ObjectModel
 		if (empty($this->{$this->identificator})) {
 			return FALSE;
 		}
-		$error_fields = array();
-		$fields = $this->validateFields($fields, FALSE, $error_fields);
-		if ($fields == FALSE) {
-			throw new Exception(__METHOD__ . " fields: [" . implode(',', $error_fields) . "] do not pass validation");
-		}
+		$fields = $this->getPreparedFieldCollection($fields, FALSE);
 		$result = Db::update($this->__dbTable)->set($fields)->where(array($this->identificator => $this->{$this->identificator}))->limit(1)->execute();
 		if ($result->rowsAffected() > 0) {
 			return TRUE;
@@ -138,10 +162,10 @@ abstract class ObjectModel
 	 */
 	public function delete()
 	{
-		if (empty($this->{$this->identificator})) {
+		if (!$this->__isLoadedObject || empty($this->{$this->identificator})) {
 			return FALSE;
 		}
-		$result = Db::delete($this->__dbTable)->where(array($this->identificator => $this->{$this->identificator}))->execute();
+		$result = Db::delete($this->__dbTable)->where(array($this->identificator => $this->{$this->identificator}))->limit(1)->execute();
 		if ($result->rowsAffected() > 0) {
 			return TRUE;
 		}
@@ -151,38 +175,161 @@ abstract class ObjectModel
 	/**
 	 * validates fields before add() and update() operations
 	 * @param array $fields - fields, values of wich should be validated
-	 * @param boolean $with_id (defaults to TRUE) - defines whatever to validate and include identificator field or not
-	 * @param array $error - contain field names wich does not passed validation
+	 * @param boolean $includeID (defaults to TRUE) - defines whatever to validate and include identificator field or not
+	 * @param array $error - reference to array contain field names wich does not passed validation
 	 * @return boolean|array - array of fields to operate over if they passed validation, FALSE overwise
 	 */
-	public function validateFields($fields = NULL, $with_id = TRUE, &$error = NULL)
+	protected function validateFields($fields = NULL, $includeID = TRUE, &$error = NULL)
 	{
 		//set actual fields array
 		$fields = (empty($fields)) ? $this->__dbFields : $fields;
-
+		//init containers
 		$error = array();
 		$success = array();
 		foreach ($fields as $field) {
-			if (!$with_id && $field === $this->identificator) {
+			if (!$includeID && $field === $this->identificator) {
+				//if ID must be excluded from validation list we will skip step
 				continue;
 			}
 
-			if (!empty($this->__dbFieldsValidators[$field])) {
-				if (!call_user_func("Validate::" . $this->__dbFieldsValidators[$field], $this->{$field})) {
-					array_push($error, $field);
-				} else {
-					$success[$field] = $this->{$field};
+			if ($this->__fieldDefinitions[$field][self::FP_REQUIRED] && empty($this->{$field})) {
+				//if field is required and still appears to be empty - it is an error
+				array_push($error, $field);
+				continue;
+			}
+
+			if (!empty($this->__fieldDefinitions[$field][self::FP_TYPE])) {
+				//validate whatever contained value meets it type definition if type is defined
+				switch ($this->__fieldDefinitions[$field][self::FP_TYPE]) {
+					case self::F_TYPE_INT:
+						$check = is_numeric($this->{$field});
+						break;
+					case self::F_TYPE_BOOL:
+						$check = is_bool($this->{$field});
+						break;
+					case self::F_TYPE_STRING:
+						$check = is_string($this->{$field});
+						break;
+					case self::F_TYPE_ARRAY:
+						$check = is_array($this->{$field});
+						break;
+					case self::F_TYPE_OBJECT:
+						$check = is_object($this->{$field});
+						break;
+					case self::F_TYPE_ANY:
+						$check = TRUE;
+						break;
+					default :
+						$check = TRUE;
+						break;
 				}
-			} else {
+
+				if (!$check) {
+					array_push($error, $field);
+					continue;
+				}
+			}
+
+			if (empty($this->__fieldDefinitions[$field][self::FP_VALIDATOR])) {
+				//if validator does not present we will auto-validate field
 				$success[$field] = $this->{$field};
+			} elseif (call_user_func("Validate::" . $this->__fieldDefinitions[$field][self::FP_VALIDATOR], $this->{$field})) {
+				//if specific validator present we will use it to validate the field
+				$success[$field] = $this->{$field};
+			} else {
+				//if other conditions are failed - seems the field is not valid - then we put it in errors
+				array_push($error, $field);
 			}
 		}
 
 		if (empty($error)) {
+			//if everything went ok we return container with valid fields and its values to caller
 			return $success;
 		}
-
+		//otherwise return false
 		return FALSE;
+	}
+
+	/**
+	 * returns array of fields and they values,
+	 * validated to meet requirements and properly prepared to place into DB
+	 *
+	 * @param array $fields - list of fields by name to validate and prepare
+	 * @param boolean $includeID - whatever to include identificator field to process
+	 * @return array fields with values validated and prepared (e.g. serialized)
+	 * @throws Exception
+	 */
+	protected function getPreparedFieldCollection($fields = NULL, $includeID = TRUE)
+	{
+		//set actual fields array to work over
+		$fields = (empty($fields)) ? $this->__dbFields : $fields;
+		//validating fields using validators set in $this->__dbFieldsValidators
+		$error_fields = array();
+		$fields = $this->validateFields($fields, $includeID, $error_fields);
+		if ($fields === FALSE) {
+			throw new Exception(__METHOD__ . " fields: [" . implode(',', $error_fields) . "] does not pass validation");
+		}
+		//prepare fields to be stored in db
+		$fields = $this->conservateFields($fields);
+
+		return $fields;
+	}
+
+	/**
+	 * prepares fied values to be saved into DB,
+	 * e.g. serializes them
+	 * @param array $fields list of fields to prepare
+	 * @return array
+	 */
+	protected function conservateFields($fields)
+	{
+		$ready = array();
+		foreach ($fields as $field => $value) {
+			if (empty($this->__fieldDefinitions[$field][self::FP_CONSERVATOR])) {
+				switch ($this->__fieldDefinitions[$field][self::FP_TYPE]) {
+					case self::F_TYPE_OBJECT:
+					case self::F_TYPE_ARRAY:
+						$ready[$field] = serialize($value);
+						break;
+					case self::F_TYPE_BOOL:
+						$ready[$field] = ($value) ? 1 : 0;
+						break;
+					default:
+						$ready[$field] = $value;
+						break;
+				}
+			} else {
+				$ready[$field] = call_user_func($this->__fieldDefinitions[$field][self::FP_CONSERVATOR], $value);
+			}
+		}
+
+		return $ready;
+	}
+
+	/**
+	 * restores original field values after they was retrieved from DB
+	 * depends on field TYPE defined in __fieldDefinitions[]
+	 * or on field DECONSERVATOR callback provided in __fieldDefinitions[]
+	 */
+	protected function deconservateFields()
+	{
+		foreach ($this->__dbFields as $field) {
+			if (empty($this->__fieldDefinitions[$field][self::FP_DECONSERVATOR])) {
+				switch ($this->__fieldDefinitions[$field][self::FP_TYPE]) {
+					case self::F_TYPE_OBJECT:
+					case self::F_TYPE_ARRAY:
+						$this->{$field} = unserialize($this->{$field});
+						break;
+					case self::F_TYPE_BOOL:
+						$this->{$field} = (bool) $this->{$field};
+						break;
+					default:
+						break;
+				}
+			} else {
+				$this->{$field} = call_user_func($this->__fieldDefinitions[$field][self::FP_DECONSERVATOR], $this->{$field});
+			}
+		}
 	}
 
 	/**

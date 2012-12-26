@@ -87,7 +87,7 @@ class Db extends SingletoneModel implements ISingletone
 	 */
 	public function setDbParameters($config, $options = array())
 	{
-		if (!($config instanceof Structure)) {
+		if (!($config instanceof Registry)) {
 			return FALSE;
 		}
 
@@ -154,6 +154,7 @@ class Db extends SingletoneModel implements ISingletone
 	 */
 	public function getQueryesTotal()
 	{
+		unset($this->lastQuery);
 		return $this->queriesTotal;
 	}
 
@@ -172,7 +173,7 @@ class Db extends SingletoneModel implements ISingletone
 	}
 
 	/**
-	 * execute freeform instant query without preparation
+	 * execute freeform instant query
 	 * @param string $query
 	 * @return DbQuery
 	 */
@@ -180,6 +181,20 @@ class Db extends SingletoneModel implements ISingletone
 	{
 		self::getInstance()->lastQuery = new DbQuery();
 		return self::getInstance()->lastQuery->instantExecute($query);
+	}
+
+	/**
+	 * prepare a free formed query with holders (either ? and :key allowed)
+	 *
+	 * you still need to execute it with DbQuery->execute($params),
+	 * passing array of values as parameters related to holders used
+	 * @param string $query
+	 * @return DbQuery
+	 */
+	public static function prepare($query)
+	{
+		self::getInstance()->lastQuery = new DbQuery();
+		return self::getInstance()->lastQuery->freeFormQuery($query);
 	}
 
 	/**
@@ -203,7 +218,7 @@ class Db extends SingletoneModel implements ISingletone
 	 *
 	 * sets insert what and values clauses of query
 	 * accepts array of paired values where
-	 * key = field name
+	 * key = field name,
 	 * value = field value
 	 * @param array $args
 	 * @return DbQuery
@@ -243,18 +258,33 @@ class Db extends SingletoneModel implements ISingletone
 		return self::$instance->lastQuery->delete($args);
 	}
 
+	/**
+	 * this is an alias to call PDO->quote()
+	 * @param string $elem
+	 * @return string
+	 */
 	public static function quoEnclose($elem)
 	{
 		$elem = self::$instance->PDO->quote($elem);
 		return $elem;
 	}
 
+	/**
+	 * returns string $elem enclosed in scobes "( )"
+	 * @param string $elem
+	 * @return string
+	 */
 	public static function scobeEnclose($elem)
 	{
 		$elem = "($elem)";
 		return $elem;
 	}
 
+	/**
+	 * alias to hmtlspecialchars()
+	 * @param string $elem
+	 * @return string
+	 */
 	public static function escapeChars($elem)
 	{
 		$elem = htmlspecialchars($elem);
@@ -262,12 +292,24 @@ class Db extends SingletoneModel implements ISingletone
 		return $elem;
 	}
 
+	/**
+	 * returns string $elem enclosed in backquotes " ` ` "
+	 * @param type $elem
+	 * @return type
+	 */
 	public static function backquoEnclose($elem)
 	{
 		$elem = "`$elem`";
 		return $elem;
 	}
 
+	/**
+	 * assigns by reference in array a string $elem
+	 * at index $key prepended by semicolon " : "
+	 * @param mixed $value
+	 * @param string $key
+	 * @param array $return
+	 */
 	public static function attachKeyColon($value, $key, $return)
 	{
 		$return[0][":$key"] = $value;

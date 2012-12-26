@@ -724,7 +724,7 @@ class DbQuery
 	}
 
 	/**
-	 * pass query result into existing object instance
+	 * pass next row of query result into existing object instance
 	 * @param ObjectModel $obj - object to fetch into
 	 * @return boolean
 	 */
@@ -738,7 +738,7 @@ class DbQuery
 	}
 
 	/**
-	 * fetch query result as an object of given class
+	 * fetch next row of query result as an object of given class
 	 * @param string $class name of class wich instance should be returned
 	 * @param array $params array of parameters passed to class constructor
 	 * @return \boolean|object
@@ -757,7 +757,7 @@ class DbQuery
 	 * @param array $params array of parameters passed to class constructor
 	 * @return \boolean|array
 	 */
-	public function fetchObjectsArray($class, $params = NULL)
+	public function fetchObjectCollection($class, $params = NULL)
 	{
 		if ($this->isExecuted()) {
 			return $this->statement->fetchAll(PDO::FETCH_CLASS, $class, $params);
@@ -766,11 +766,25 @@ class DbQuery
 	}
 
 	/**
-	 * fetch results of query as array of key-paired values
+	 * fetch next row of query result as array of key-paired values
 	 * @param boolean $wnum fetch with numerical keys or not
 	 * @return boolean
 	 */
 	public function fetchArray($wnum = FALSE)
+	{
+		if ($this->isExecuted()) {
+			$wnum = ($wnum) ? PDO::FETCH_BOTH : PDO::FETCH_ASSOC;
+			return $this->statement->fetch($wnum);
+		}
+		return FALSE;
+	}
+
+	/**
+	 * fetch next row of query result as array of key-paired values
+	 * @param boolean $wnum fetch with numerical keys or not
+	 * @return boolean
+	 */
+	public function fetchArrayCollection($wnum = FALSE)
 	{
 		if ($this->isExecuted()) {
 			$wnum = ($wnum) ? PDO::FETCH_BOTH : PDO::FETCH_ASSOC;
