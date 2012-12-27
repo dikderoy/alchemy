@@ -224,10 +224,15 @@ class DbQuery
 	 */
 	public function select($args = NULL)
 	{
-		if (!is_array($args))
-			$args = func_get_args();
-		$this->what = $args;
 		$this->queryType = Db::Q_TYPE_SELECT;
+		if(empty($args)) {
+			return $this;
+		}
+		if (!is_array($args)) {
+			$args = func_get_args();
+		}
+		$this->what = $args;
+
 		return $this;
 	}
 
@@ -540,7 +545,7 @@ class DbQuery
 				} elseif (is_string($value)) {
 					array_push($set, "`$key` like :w_{$key}");
 				} elseif (is_null($value)) {
-					throw new DbException('unexpected value of WHERE clause - may cause undefined behavior', E_PARSE);
+					throw new DbException("unexpected value `{$value}` = NULL of WHERE clause - may cause undefined behavior", E_PARSE);
 				}
 				//make indexes like ":w_key"
 				$this->whereValueSet[":w_$key"] = $value;

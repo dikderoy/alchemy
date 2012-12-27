@@ -42,20 +42,20 @@ abstract class ObjectModel
 	protected $__isLoadedObject = FALSE;
 
 	/**
-	 * defines name of table in DB to wich object is(or must be) releated(saved to)
+	 * defines name of table in DB to wich object is(or must be) related(saved to)
 	 * @var string
 	 */
 	protected $__dbTable;
 
 	/**
-	 * defines fields of object wich are releated to DB entry
+	 * defines fields of object wich are related to DB entry
 	 * only fields in this list can be saved to DB as entry
 	 * @var array
 	 */
 	protected $__dbFields = array();
 
 	/**
-	 * holds definitions for each DB releated field of object
+	 * holds definitions for each DB related field of object
 	 * validation and preparation behavior depends on this property
 	 * @var array collection
 	 */
@@ -70,29 +70,82 @@ abstract class ObjectModel
 
 	/**
 	 * constructs new object,
-	 * if $id given - tries to load releated entry from DB
+	 * if $id given - tries to load related entry from DB
 	 * @param mixed $id
 	 */
 	public function __construct($id = NULL)
 	{
-		//retrieve list of field names defined as db-releated
+		//retrieve list of field names defined as db-related
 		$this->__dbFields = array_keys($this->__fieldDefinitions);
-
-		if (empty($id)) {
-			$error = TRUE;
-		} elseif (isset($this->__fieldDefinitions[$this->identificator][self::FP_VALIDATOR])) {
-			$error = !call_user_func('Validate::' . $this->__fieldDefinitions[$this->identificator][self::FP_VALIDATOR], $id);
+		//load data if exists
+		if ($this->onConstructCheck($id)) {
+			$this->load($id);
 		}
-		if (!$error) {
-			$q = Db::select($this->__dbFields)->from($this->__dbTable)->where(array($this->identificator => $id))->limit(1)->execute();
-			if ($q->fetchIntoObject($this)) {
-				//if ok set object as loaded and deconservate fields
-				$this->__isLoadedObject = TRUE;
-				$this->deconservateFields();
-			} else {
-				//just assign id to identificator field
-				$this->{$this->identificator} = $id;
+	}
+
+	/**
+	 * returns object identificator field contents
+	 * @return string|integer
+	 */
+	public function getID()
+	{
+		return $this->{$this->identificator};
+	}
+
+	/**
+	 * use this if you want to properly load object
+	 * wich has protected or private db-related properties
+	 * @param string $word
+	 * @return ObjectModel
+	 */
+	public static function protectedInstanceLoad($id = NULL)
+	{
+		//get actual class name
+		$className = get_called_class();
+		//create a blank instance of class to get access to properties
+		$propertyStack = new $className();
+		//perform ID param check
+		if ($propertyStack->onConstructCheck($id)) {
+			$res = Db::select()->from($propertyStack->__dbTable)->where(array($propertyStack->identificator => $id))->limit(1)->execute();
+			$userInstance = $res->fetchObject($className);
+			if ($userInstance instanceof User) {
+				$userInstance->__isLoadedObject = TRUE;
+				$userInstance->deconservateFields();
+				return $userInstance;
 			}
+		}
+		return new $className();
+	}
+
+	/**
+	 * check performed on object construction to prevent search with wrong ID values
+	 * @param mixed $id
+	 * @return boolean
+	 */
+	protected function onConstructCheck($id = NULL)
+	{
+		if (empty($id)) {
+			return FALSE;
+		} elseif (isset($this->__fieldDefinitions[$this->identificator][self::FP_VALIDATOR])) {
+			return call_user_func('Validate::' . $this->__fieldDefinitions[$this->identificator][self::FP_VALIDATOR], $id);
+		}
+		return TRUE;
+	}
+
+	/**
+	 * load procedure performed on construct
+	 * @param mixed $id
+	 */
+	protected function load($id = NULL)
+	{
+		$q = Db::select($this->__dbFields)->from($this->__dbTable)->where(array($this->identificator => $id))->limit(1)->execute();
+		if ($q->fetchIntoObject($this)) {
+			//if ok set object as loaded and deconservate fields
+			$this->__isLoadedObject = TRUE;
+			$this->deconservateFields();
+		} else {
+			//just assign id to identificator field
+			$this->{$this->identificator} = $id;
 		}
 	}
 
@@ -195,6 +248,8 @@ abstract class ObjectModel
 			if ($this->__fieldDefinitions[$field][self::FP_REQUIRED] && empty($this->{$field})) {
 				//if field is required and still appears to be empty - it is an error
 				array_push($error, $field);
+				continue;
+			} elseif (!$this->__fieldDefinitions[$field][self::FP_REQUIRED] && empty($this->{$field})) {
 				continue;
 			}
 
@@ -338,7 +393,7 @@ abstract class ObjectModel
 	 * @param array $fields list of fields to convert (default is __dbFields)
 	 * @return array
 	 */
-	public function __toArray($fields)
+	public function __toArray($fields = NULL)
 	{
 		$array = array();
 		$fields = (empty($fields)) ? $this->__dbFields : $fields;

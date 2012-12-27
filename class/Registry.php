@@ -81,6 +81,12 @@ class Registry extends Structure
 	public $userSupport = FALSE;
 
 	/**
+	 *holds current user if userSupport is TRUE
+	 * @var User
+	 */
+	protected $currentUser = NULL;
+
+	/**
 	 * defines whatever to show any debug at all
 	 * if set to FALSE no debug will be shown
 	 * regardless to values of
@@ -151,6 +157,24 @@ class Registry extends Structure
 	public static function set($name, $value)
 	{
 		self::getInstance()->{$name} = $value;
+	}
+
+	/**
+	 * returns current user instance
+	 * @return User
+	 */
+	public static function getCurrentUser()
+	{
+		return self::$instance->currentUser;
+	}
+
+	/**
+	 * sets current user instance
+	 * @param User $currentUser
+	 */
+	public static function setCurrentUser($currentUser)
+	{
+		self::$instance->currentUser = $currentUser;
 	}
 
 	/**

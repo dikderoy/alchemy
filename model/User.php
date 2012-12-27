@@ -2,42 +2,80 @@
 
 class User extends ObjectModel
 {
+
+	const SEC_TOKEN_NAME = 'sec_token';
+
 	protected $identificator = 'uid';
 	protected $__dbTable = 'user';
-	protected $__dbFields = array(
-		'uid',
-		'login',
-		'password',
-		'securityToken',
-		'accessLevel',
-		'privileges',
-		'name',
-		'surname',
-		'fathername',
-		'email',
-		'phone',
-		'city',
-		'address',
-		'firmName',
-		'firmType',
-		'info'
+	protected $__fieldDefinitions = array(
+		'uid' => array(
+			self::FP_TYPE => self::F_TYPE_STRING,
+			self::FP_SIZE => 64,
+			self::FP_REQUIRED => TRUE
+		),
+		'login' => array(
+			self::FP_TYPE => self::F_TYPE_STRING,
+			self::FP_SIZE => 64,
+			self::FP_REQUIRED => TRUE,
+			self::FP_VALIDATOR => 'isValidObjectName'
+		),
+		'password' => array(
+			self::FP_TYPE => self::F_TYPE_STRING,
+			self::FP_SIZE => 64,
+			self::FP_REQUIRED => TRUE,
+			self::FP_VALIDATOR => 'isValidName'
+		),
+		'securityToken' => array(
+			self::FP_TYPE => self::F_TYPE_STRING,
+			self::FP_SIZE => 64,
+		),
+		'accessLevel' => array(
+			self::FP_TYPE => self::F_TYPE_INT,
+			self::FP_SIZE => 5,
+			self::FP_REQUIRED => TRUE
+		),
+		'privileges' => array(
+			self::FP_TYPE => self::F_TYPE_ARRAY,
+		),
+		'name' => array(
+			self::FP_TYPE => self::F_TYPE_STRING,
+			self::FP_SIZE => 256,
+			self::FP_REQUIRED => TRUE,
+			self::FP_VALIDATOR => 'isValidName'
+		),
+		'surname' => array(
+			self::FP_TYPE => self::F_TYPE_STRING,
+			self::FP_SIZE => 256,
+			self::FP_VALIDATOR => 'isValidName'
+		),
+		'fathername' => array(
+			self::FP_TYPE => self::F_TYPE_STRING,
+			self::FP_SIZE => 256,
+			self::FP_VALIDATOR => 'isValidName'
+		),
+		'email' => array(
+			self::FP_TYPE => self::F_TYPE_STRING,
+			self::FP_SIZE => 256,
+			self::FP_REQUIRED => TRUE,
+			self::FP_VALIDATOR => 'isValidEmail'
+		),
+		'phone' => array(
+			self::FP_TYPE => self::F_TYPE_STRING,
+			self::FP_SIZE => 64,
+		),
+		'cityId' => array(
+			self::FP_TYPE => self::F_TYPE_INT,
+			self::FP_SIZE => 64,
+		),
+		'addressId' => array(
+			self::FP_TYPE => self::F_TYPE_INT,
+			self::FP_SIZE => 64,
+		),
+		'info' => array(
+			self::FP_TYPE => self::F_TYPE_STRING,
+			self::FP_SIZE => 5000,
+		)
 	);
-
-	protected $__dbFieldsValidators = array(
-		'login' => "isValidObjectName" ,
-		'password' => "isValidPassword",
-		'accessLevel' => "isInt",
-		'name' => "isValidName",
-		'surname' => "isValidName",
-		'fathername' => "isValidName",
-		'email'  => "isValidEmail",
-		'city' => "isValidName",
-		'address' => "isValidName",
-		'firmName' => "isValidName",
-		'firmType' => "isValidName",
-		'info' => "isValidName"
-	);
-
 	public $uid;
 	public $login;
 	protected $password;
@@ -49,80 +87,96 @@ class User extends ObjectModel
 	public $fathername;
 	public $email;
 	public $phone;
-	public $city;
-	public $address;
-	public $firmName;
-	public $firmType;
+	public $cityId;
+	public $addressId;
 	public $info;
-
-	/**
-	 * defines whatever user registred or guest
-	 * @var bool
-	 */
-	public $isRegistered = TRUE;
 
 	/**
 	 * shows whatever recognized is user passed authorization
 	 * @var bool
 	 */
-	public $isAuthorized = FALSE;
+	protected $__isAuthorized = FALSE;
 
+	public function __construct($id = NULL)
+	{
+		$this->__dbTable = __DBPREFIX__ . $this->__dbTable;
+		parent::__construct($id);
+	}
+
+	/**
+	 * finds out who is current user and returns a link to its Object
+	 *
+	 * @return User
+	 */
+	public static function getUser($login = NULL)
+	{
+		if ($login) {
+			Registry::setCurrentUser(User::getUserByLogin($login));
+		}
+		//session has user uid
+		elseif (!empty($_SESSION['user']['uid']) && !empty($_COOKIE[self::SEC_TOKEN_NAME])) {
+			Registry::setCurrentUser(User::getUserByUID($_SESSION['user']['uid']));
+		} else {
+			$_SESSION['user'] = NULL;
+			Registry::setCurrentUser(new PublicUser());
+		}
+
+		return Registry::getCurrentUser();
+	}
 
 	/**
 	 * return User instance by Login
-	 * @param string $word
-	 * @return KWDUser
+	 * @param string $id
+	 * @return User
 	 */
 	public static function getUserByLogin($word)
 	{
-		$statement = Db::getInstance()->select()->from(__DBPREFIX__."user")->whereComplex("login = :login")->limit(1)->_exec(TRUE);
-		$statement->execute(array(':login' => $word));
-		$obj = $statement->fetchObject(get_called_class());
-		//$obj->__isLoadedObject  = TRUE;
-		return $obj;
+		//get actual class name
+		$className = get_called_class();
+		//create a blank instance of class to get access to properties
+		$propertyStack = new $className();
+		//perform ID param check
+		if ($propertyStack->onConstructCheck($word)) {
+			$res = Db::select()->from($propertyStack->__dbTable)->where(array('login' => $word))->limit(1)->execute();
+			$instance = $res->fetchObject($className);
+			if ($instance instanceof $className) {
+				$instance->__isLoadedObject = TRUE;
+				$instance->deconservateFields();
+				return $instance;
+			}
+		}
+		return new PublicUser();
 	}
 
 	/**
 	 * return User instance by UID
 	 * @param string $word
-	 * @return KWDUser
+	 * @return User
 	 */
-	public static function getUserByUID($word)
+	public static function getUserByUID($uid)
 	{
-		/*
-		$statement = Db::getInstance()->select()->from(__DBPREFIX__."user")->where("uid = :uid")->limit(1)->_exec(TRUE);
-		$statement->execute(array(':uid' => $word));
-		return $statement->fetchObject(get_called_class());
-		 */
-		return new self($word);
+		return self::protectedInstanceLoad($uid);
 	}
 
 	/**
-	 * inicialization of KWDUser Object
-	 * @param string|int $id db_object_id
+	 * authorizing user who tryes to get access
+	 * @param string $login
+	 * @param string $pass
+	 * @return int (1 on success | 0 on fail)
 	 */
-	public function __construct($id = NULL)
+	public static function authorize($login, $pass)
 	{
-		parent::__construct($id);
-		$this->privileges = explode(',', $this->privileges);
-	}
-
-	/**
-	 * returns current user's UID
-	 * @return string
-	 */
-	public function getUID()
-	{
-		return $this->uid;
-	}
-
-	/**
-	 * returns current user's login
-	 * @return string
-	 */
-	public function getLogin()
-	{
-		return $this->login;
+		if (empty($login)) {
+			return FALSE;
+		}
+		$pretendent = self::getUserByLogin($login);
+		//usual auth process (getbylogin from DB , check pass, etc...)
+		if (!$pretendent->isRegistered()) {
+			return FALSE;
+		} elseif ($pretendent->login == $login && $pretendent->checkPass($pass)) {
+			return $pretendent->startSession();
+		}
+		return FALSE;
 	}
 
 	/**
@@ -131,7 +185,7 @@ class User extends ObjectModel
 	 */
 	public function setPassword($word)
 	{
-		$this->password = $this->Core->Security->generatePswdHash($word);
+		$this->password = $this->generatePswdHash($word);
 	}
 
 	/**
@@ -143,16 +197,30 @@ class User extends ObjectModel
 		return "{$this->surname} {$this->name} {$this->fathername}";
 	}
 
+	public function isRegistered()
+	{
+		return $this->__isLoadedObject;
+	}
+
+	public function isAuthorized()
+	{
+		if ($this->checkSecurityToken($_COOKIE[self::SEC_TOKEN_NAME]) && $this->isRegistered()) {
+			return $this->__isAuthorized = TRUE;
+		}
+		return $this->__isAuthorized = FALSE;
+	}
+
 	/**
 	 * initialize authorized user session
 	 * sets php-session and cookie variables to recognize user in future as 'authorized''
 	 * @return boolean
 	 */
-	public function initiateSession()
+	public function startSession()
 	{
-		if($this->createSecurityToken()) {
-			$this->isAuthorized = TRUE;
+		if ($this->createSecurityToken()) {
+			$this->__isAuthorized = TRUE;
 			$_SESSION['user'] = array('uid' => $this->uid);
+			Registry::setCurrentUser($this);
 			return TRUE;
 		} else {
 			return FALSE;
@@ -167,7 +235,8 @@ class User extends ObjectModel
 	{
 		$this->destroySecurityToken();
 		session_destroy();
-		$this->isAuthorized = FALSE;
+		$this->__isAuthorized = FALSE;
+		Registry::setCurrentUser(new PublicUser());
 	}
 
 	/**
@@ -175,13 +244,11 @@ class User extends ObjectModel
 	 */
 	public function createSecurityToken()
 	{
-		$token = md5(uniqid('kwd_stoken_'.time(), TRUE));
-		$statement = Db::getInstance()->update(__DBPREFIX__."user")->set(array('securityToken'=>$token))->whereComplex("uid = :uid")->limit(1)->_exec(TRUE);
+		$this->securityToken = md5(uniqid(self::SEC_TOKEN_NAME . microtime(), TRUE));
 
-		if($statement->execute(array(':uid' => $this->uid))) {
-			setcookie("sec_token", $token, time() + KWDConfig::$COOKIE_LIFETIME, '/');
-			$this->securityToken = $token;
-			$this->Core->env_cookie['sec_token'] = $token;
+		if ($this->save(array('securityToken'))) {
+			setcookie(self::SEC_TOKEN_NAME, $this->securityToken, time() + Registry::getInstance()->cookiesLifetime, '/');
+			$_COOKIE[self::SEC_TOKEN_NAME] = $this->securityToken;
 			return TRUE;
 		} else {
 			return FALSE;
@@ -193,9 +260,8 @@ class User extends ObjectModel
 	 */
 	public function destroySecurityToken()
 	{
-		setcookie("sec_token", "", time() - KWDConfig::$COOKIE_LIFETIME - 1000);
-		$this->Core->env_cookie['sec_token'] = NULL;
-		//$this->securityToken = NULL;
+		setcookie(self::SEC_TOKEN_NAME, "NULL", time() - Registry::getInstance()->cookiesLifetime - 10000);
+		$_COOKIE[self::SEC_TOKEN_NAME] = NULL;
 	}
 
 	/**
@@ -205,11 +271,41 @@ class User extends ObjectModel
 	 */
 	public function checkSecurityToken($token)
 	{
-		if($this->securityToken == $token) {
+		if ($this->securityToken == $token) {
 			return TRUE;
 		} else {
 			return FALSE;
 		}
+	}
+
+	/**
+	 * generates word hash (currently MD5 Hash is used)
+	 * @param type $password
+	 * @return type
+	 */
+	public function generatePswdHash($password)
+	{
+		return md5($password);
+	}
+
+	/**
+	 * generates new random password of given length consisting of [A-Za-z0-9] simbols
+	 * @param int $length
+	 * @return string
+	 */
+	public function generatePassword($length)
+	{
+		list($usec, $sec) = explode(' ', microtime());
+		$rand_ofset = (float) $sec + ((float) $usec * 100000);
+		srand($rand_ofset);
+
+		$alfa = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM";
+		$len_alfa = strlen($alfa);
+		$token = "";
+		for ($i = 0; $i < $length; $i++) {
+			$token .= $alfa[rand(0, $len_alfa)];
+		}
+		return $token;
 	}
 
 	/**
@@ -219,7 +315,7 @@ class User extends ObjectModel
 	 */
 	public function checkPass($pass)
 	{
-		if($this->Core->Security->generatePswdHash($pass) == $this->password) {
+		if ($this->generatePswdHash($pass) == $this->password) {
 			return TRUE;
 		} else {
 			return FALSE;
@@ -231,125 +327,13 @@ class User extends ObjectModel
 	 * @param int $privilege_id
 	 * @return boolean
 	 */
-	public function hasPrivilege($privilege_id)
+	public function hasPrivilege($privilegeID)
 	{
-		if(in_array($privilege_id, $this->privileges)) {
+		if (in_array($privilegeID, $this->privileges)) {
 			return TRUE;
 		} else {
 			return FALSE;
 		}
-	}
-
-	public function save()
-	{
-		$save = array();
-
-		$save['uid']		 = uniqid();
-		$save['login']	   = $this->login;
-		$save['password']	= $this->password;
-		$save['accessLevel'] = $this->accessLevel;
-		$save['privileges']  = implode(',', $this->privileges);
-		$save['name']		= $this->name;
-		$save['surname']	 = $this->surname;
-		$save['fathername']  = $this->fathername;
-		$save['email']	   = $this->email;
-		$save['info']		= $this->info;
-		$save['city']		= $this->city;
-		$save['phone']	   = $this->phone;
-		$save['address']	 = $this->address;
-		$save['firmName']	= $this->firmName;
-		$save['firmType']	= $this->firmType;
-
-		/*
-		  $req = array(
-		  'what' => array_keys($save),
-		  'into' => 'kwd_users',
-		  'values' => array($save)
-		  );
-
-		  $query = KWDDB::constructQuery($req,'insert');
-		  $data = KWDCore::getInstance()->sql->execute($query);
-		 */
-		$res = KWDCore::getDBC()->insert($save)->into('kwd_users')->_exec();
-
-		if($res->rowCount() >= 1) {
-			$this->id = KWDCore::getDBC()->getPDO()->lastInsertId();
-			return TRUE;
-		} else {
-			return FALSE;
-		}
-	}
-
-	public function update()
-	{
-		$save = array();
-
-		$save['login']	   = $this->login;
-		if(!empty($this->password)) {
-			$save['password']	= $this->password;
-		}
-		$save['accessLevel'] = $this->accessLevel;
-		$save['privileges']  = implode(',', $this->privileges);
-		$save['name']		= $this->name;
-		$save['surname']	 = $this->surname;
-		$save['fathername']  = $this->fathername;
-		$save['email']	   = $this->email;
-		$save['info']		= $this->info;
-		$save['city']		= $this->city;
-		$save['phone']	   = $this->phone;
-		$save['address']	 = $this->address;
-		$save['firmName']	= $this->firmName;
-		$save['firmType']	= $this->firmType;
-
-		$res = KWDCore::getDBC()->update("kwd_users")->set($save)->whereComplex("uid = '{$this->uid}'")->_limit(1)->_exec();
-
-		if($res->rowCount() >= 1) {
-			$this->id = KWDCore::getDBC()->getPDO()->lastInsertId();
-			return TRUE;
-		} else {
-			return FALSE;
-		}
-	}
-
-	public function delete()
-	{
-		$query = array(
-				'from' => 'kwd_users',
-				'where' => array("uid = '{$this->uid}'"),
-				'glue' => ' and ',
-				'limit' => 1
-		);
-
-		$query = KWDDB::constructQuery($req, 'delete');
-
-		if(!empty($data)) {
-			return TRUE;
-		} else {
-			return FALSE;
-		}
-	}
-
-	public function __toArray()
-	{
-		$array = array();
-		$not_push = array(
-				"Core",
-				"uid",
-				"password",
-				"securityToken",
-				"isRegistered",
-				"isAuthorized",
-				"accessLevel",
-				"privileges"
-		);
-
-		foreach($this as $key => $value) {
-			if(!in_array($key, $not_push)) {
-				$array[$key] = $value;
-			}
-		}
-
-		return $array;
 	}
 
 }
@@ -357,28 +341,15 @@ class User extends ObjectModel
 /**
  * represent a Public User connected to a system
  */
-class KWDPublicUser extends KWDUser
+class PublicUser extends User
 {
 
 	public function __construct()
 	{
 		parent::__construct();
 		$this->accessLevel = 4;
-		$this->isRegistered = FALSE;
-		$this->isAuthorized = FALSE;
 		$this->login = 'Guest';
 		$this->name = 'Guest';
 	}
 
-	/**
-	 * return new instance
-	 * @return \KWDPublicUser
-	 */
-	public static function getUser()
-	{
-		return new KWDPublicUser();
-	}
-
 }
-
-?>
