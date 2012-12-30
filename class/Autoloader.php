@@ -21,27 +21,37 @@ class Autoloader
 
 	public static function autoloadInterface($interface)
 	{
-		Tools::includeFileIfExists($interface, SYSTEM_ROOT . "/interface/", 'php', FALSE);
+		if (!Tools::includeFileIfExists($interface, SYSTEM_ROOT . "/interface_project/", 'php', FALSE)) {
+			Tools::includeFileIfExists($interface, SYSTEM_ROOT . "/interface/", 'php', FALSE);
+		}
 	}
 
 	public static function autoloadController($controller)
 	{
-		Tools::includeFileIfExists($controller, SYSTEM_ROOT . "/controller/", 'php', FALSE);
+		if (!Tools::includeFileIfExists($controller, SYSTEM_ROOT . "/controller_project/", 'php', FALSE)) {
+			Tools::includeFileIfExists($controller, SYSTEM_ROOT . "/controller/", 'php', FALSE);
+		}
 	}
 
 	public static function autoloadLibrary($lib)
 	{
-		Tools::includeFileIfExists($lib, SYSTEM_ROOT . "/lib/", 'php', FALSE);
+		if (!Tools::includeFileIfExists($lib, SYSTEM_ROOT . "/lib_project/", 'php', FALSE)) {
+			Tools::includeFileIfExists($lib, SYSTEM_ROOT . "/lib/", 'php', FALSE);
+		}
 	}
 
 	public static function autoloadView($view)
 	{
-		Tools::includeFileIfExists($view, SYSTEM_ROOT . "/view/", 'php', FALSE);
+		if (!Tools::includeFileIfExists($view, SYSTEM_ROOT . "/view_project/", 'php', FALSE)) {
+			Tools::includeFileIfExists($view, SYSTEM_ROOT . "/view/", 'php', FALSE);
+		}
 	}
 
 	public static function autoloadModel($model)
 	{
-		Tools::includeFileIfExists($model, SYSTEM_ROOT . '/model/', 'php', FALSE);
+		if (!Tools::includeFileIfExists($model, SYSTEM_ROOT . '/model_project/', 'php', FALSE)) {
+			Tools::includeFileIfExists($model, SYSTEM_ROOT . '/model/', 'php', FALSE);
+		}
 	}
 
 }

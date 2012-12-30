@@ -65,7 +65,15 @@ class Core extends SingletoneModel implements ISingletone
 	public function init()
 	{
 		try {
-			$this->router = new Router();
+			Db::getInstance(Registry::getInstance());
+			$this->sessionInit();
+
+			if (Registry::getInstance()->userSupport) {
+				//here comes getUser , isUserAuthorized etc...
+				User::getUser();
+			}
+
+			$this->router = new RouterGet();
 			if ($this->router instanceof IRouter) {
 				$this->router->parseRequest();
 				Registry::getInstance()->currentController = $this->router->getController();
@@ -73,13 +81,6 @@ class Core extends SingletoneModel implements ISingletone
 				Registry::getInstance()->currentPageId = $this->router->getId();
 			} else {
 				throw new Exception('router class does not implements IRouter interface', 500);
-			}
-
-			Db::getInstance(Registry::getInstance());
-			$this->sessionInit();
-
-			if (Registry::getInstance()->userSupport) {
-				//here comes getUser , isUserAuthorized etc...
 			}
 		} catch (Exception $exc) {
 			$this->error = TRUE;
@@ -97,9 +98,8 @@ class Core extends SingletoneModel implements ISingletone
 		try {
 			if ($this->error) {
 				$this->initErrorHandler(Registry::get('initException'));
-			} else {
-				$this->output = Controller::runController(Registry::getInstance()->currentController, Registry::getInstance()->currentAction, Registry::getInstance()->currentPageId);
 			}
+			$this->output = Controller::runController(Registry::getInstance()->currentController, Registry::getInstance()->currentAction, Registry::getInstance()->currentPageId);
 		} catch (Exception $exc) {
 			$this->output = Controller::runController('ControllerError', $exc->getCode(), $exc);
 		}
@@ -109,7 +109,7 @@ class Core extends SingletoneModel implements ISingletone
 	{
 		if ($this->output instanceof IView) {
 			if (Registry::getInstance()->showDebug) {
-				$this->output->showDebug($this->router->getParamsArray());
+				$this->output->showDebug($this->router->getParamsArray(), Registry::getCurrentUser()->__toArray(array('login', '__isAuthorized', '__isLoadedObject')));
 			}
 			$this->output->displayGenerated();
 		} elseif (!empty($this->output)) {
@@ -119,7 +119,7 @@ class Core extends SingletoneModel implements ISingletone
 		}
 	}
 
-	protected function initErrorHandler($exc)
+	protected function initErrorHandler(Exception $exc)
 	{
 		Registry::set('initError', $exc->getMessage());
 	}

@@ -23,11 +23,10 @@ class Tools
 		if (file_exists($path . $fname . '.' . $extension)) {
 			include_once $path . $fname . '.' . $extension;
 			return TRUE;
-		} elseif($throw) {
+		} elseif ($throw) {
 			throw new Exception("failed to include file `{$fname}`", 404);
-		} else {
-			return FALSE;
 		}
+		return FALSE;
 	}
 
 }

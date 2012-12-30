@@ -13,6 +13,12 @@
 		{literal}
 			<style>
 				body {padding-top: 60px;}
+				.myface.well {
+					padding:0;
+					overflow:hidden;
+				}
+				.myface address {
+					padding:20px 10px 0 10px;;
 			</style>
 		{/literal}
 		<script type="text/javascript" src="/js/jquery-1.8.3.min.js"></script>

@@ -5,7 +5,7 @@
  *
  * @author Deroy
  */
-abstract class Controller extends Structure
+abstract class Controller
 {
 
 	/**
@@ -102,7 +102,7 @@ abstract class Controller extends Structure
 			//make sure what method exists
 			if (!method_exists($this, $actionPrefix . $actionName)) {
 				//throw noAction CException
-				throw new ControllerException("action $actionName not implemented", 'noAction');
+				//throw new ControllerException("action `$actionName` not implemented", 'noAction');
 				//or fallback to default action
 				$actionName = Registry::getInstance()->defaultAction;
 			}
@@ -111,7 +111,8 @@ abstract class Controller extends Structure
 				return TRUE;
 			}
 			$exec_state = $this->{$actionPrefix . $actionName}($data);
-			//throw actionName CException if data catched from action equals to FALSE instead of array
+			//throw actionName CException if data catched from action equals to FALSE
+			//(you can also trew this exception type inside of action and define specific *ErrorHandler method)
 			if ($exec_state === FALSE) {
 				throw new ControllerActionError("action `$actionName` returned bad result", $actionName);
 			}
@@ -209,7 +210,6 @@ abstract class Controller extends Structure
 	/**
 	 * default action
 	 * controller must have at list one action
-	 * @abstract
 	 * @var array $data - accepted work parameters or data
 	 */
 	public abstract function actionDefault($data);

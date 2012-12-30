@@ -175,6 +175,8 @@ class User extends ObjectModel
 			return FALSE;
 		} elseif ($pretendent->login == $login && $pretendent->checkPass($pass)) {
 			return $pretendent->startSession();
+		} else {
+			$pretendent->endSession();
 		}
 		return FALSE;
 	}

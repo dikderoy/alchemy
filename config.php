@@ -32,4 +32,5 @@ $system_config = array(
 	'showResponseVardump' => FALSE,
 	// int - define a lifetime of cookies in seconds
 	'cookiesLifetime' => 40000,
+	'userSupport' => TRUE
 );
