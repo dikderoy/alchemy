@@ -1,21 +1,29 @@
 <?php
 
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 /**
- *
- * @author Deroy
+ * @package Alchemy Framework
+ * @author Deroy aka Roman Bulgakov
  */
 interface IView
 {
 
+	/**
+	 * sets template name
+	 * @param string $name
+	 */
 	public function setTemplateName($name);
 
+	/**
+	 * gets template name setted by setTemplateName
+	 * @return string
+	 */
 	public function getTemplateName();
 
+	/**
+	 * extend current template with another template
+	 * works only for Smarty ancestors
+	 * @param string $template
+	 */
 	public function extend($template);
 
 	/**
@@ -29,9 +37,29 @@ interface IView
 	 */
 	public function assign($data, $data2 = NULL);
 
+	/**
+	 * fetches and displays template
+	 */
 	public function displayGenerated();
 
+	/**
+	 * include debug info into template data
+	 */
 	public function showDebug();
 
+	/**
+	 * finds out whatever template is cached
+	 * @param string $template
+	 * @param string|integer|null $cache_id
+	 * @param string|integer|null $compile_id
+	 * @return bool
+	 */
 	public function isCached($template, $cache_id = NULL, $compile_id = NULL);
+
+	/**
+	 * set current view cache ID
+	 * @param string $cacheID
+	 * @return bool
+	 */
+	public function setCacheId($cacheID);
 }

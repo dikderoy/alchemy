@@ -3,7 +3,9 @@
 /**
  * Core of Alchemy Framework
  *
- * @author Deroy
+ * @package Alchemy Framework
+ * @version 1.0.0
+ * @author Deroy aka Roman Bulgakov
  */
 class Core extends SingletoneModel implements ISingletone
 {
@@ -56,6 +58,14 @@ class Core extends SingletoneModel implements ISingletone
 	{
 		return "Core Object";
 	}
+
+    /**
+     * @return \IRouter
+     */
+    public function getRouter()
+    {
+        return $this->router;
+    }
 
 	protected function sessionInit()
 	{

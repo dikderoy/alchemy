@@ -1,7 +1,8 @@
 <?php
 
 /**
- * Description of Tools
+ * Collection of different Tools
+ * as static methods
  *
  * @author Deroy
  */
@@ -13,6 +14,8 @@ class Tools
 	 * @param string $fname - file name
 	 * @param string $path - defaults to APP_ROOT DIR
 	 * @param string $extension - defaults to PHP
+	 * @param bool $throw - defines whatever to throw exception or just return FALSE on failure
+	 * @return bool
 	 * @throws Exception - if file not found
 	 */
 	public static function includeFileIfExists($fname, $path = NULL, $extension = 'php', $throw = TRUE)

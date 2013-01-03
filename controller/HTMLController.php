@@ -12,6 +12,7 @@ abstract class HTMLController extends Controller
 	{
 		$this->viewClass = 'HTMLView';
 		$this->setActionTemplate('noActionExceptionHandler', 'ErrorWrapper.tpl');
+        $this->setActionTemplate('dbErrorHandler', 'ErrorWrapper.tpl');
 	}
 
 	protected function dbErrorHandler($exc)

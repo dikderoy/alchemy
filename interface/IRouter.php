@@ -27,6 +27,12 @@ interface IRouter
 	 */
 	public function getController();
 
+    /**
+     * returns default controller name
+     * @return string
+     */
+    public function getDefaultController();
+
 	/**
 	 * returns action name parsed from query
 	 */

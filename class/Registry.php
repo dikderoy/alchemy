@@ -1,8 +1,11 @@
 <?php
 
 /**
- * SIngletone. Holds system settings durring the execution
- * @author Deroy
+ * Singletone.
+ * Holds system settings, parameters and SWAP during the execution
+ * @package Alchemy Framework
+ * @version 1.0.0
+ * @author Deroy aka Roman Bulgakov
  */
 class Registry extends Structure
 {
@@ -98,7 +101,7 @@ class Registry extends Structure
 
 	/**
 	 * defines whatever debug info (post, get, session, cookie arrays print_r()) must be shown or not
-	 * @var boo
+	 * @var bool
 	 */
 	public $showEnveronmentDebug = FALSE;
 
@@ -138,6 +141,7 @@ class Registry extends Structure
 
 	/**
 	 * returns singleton instance of DB
+     * @param $settings - array of settings to set (passed to __construct())
 	 * @return Registry
 	 */
 	public static function getInstance($settings = NULL)
@@ -180,7 +184,7 @@ class Registry extends Structure
 	/**
 	 * on first call an initial value of time() is set
 	 * on further calls returns exec statistics as array
-	 * @return array\NULL execution info
+	 * @return array|NULL execution info
 	 */
 	public function calculateExecutionStatistics()
 	{
@@ -196,6 +200,8 @@ class Registry extends Structure
 
 			return $res;
 		}
+
+        return FALSE;
 	}
 
 }

@@ -12,36 +12,75 @@ abstract class Router implements IRouter
 	public $controller;
 	public $action;
 	public $id;
-	private $isACP = FALSE;
+	protected $isACP = FALSE;
 
-	public function __construct()
+    /**
+     * constructs an instance of Routing object
+     */
+    public function __construct()
 	{
 		$this->request = $_SERVER['REQUEST_URI'];
 	}
 
-	abstract public function parseRequest();
+    /**
+     * parses a request into three components (may be less)
+     *  - controller name
+     *  - action name
+     *  - object id (optional parameter its usage defined in each controller individually)
+     * @return mixed
+     */
+    abstract public function parseRequest();
 
-	public function getRequest()
+    /**
+     * returns request string as it was given to interpreter
+     * @return string
+     */
+    public function getRequest()
 	{
 		return $this->request;
 	}
 
-	public function getParamsArray()
+    /**
+     * returns all available request params as array
+     * @return array
+     */
+    public function getParamsArray()
 	{
 		return $this->params;
 	}
 
-	public function getController()
+    /**
+     * returns controller name with prefix parsed from request string
+     * @return string
+     */
+    public function getController()
 	{
 		return $this->controllerPrefix.$this->controller;
 	}
 
-	public function getAction()
+    /**
+     * returns default controller name with prefix
+     * @return string
+     */
+    public function getDefaultController()
+    {
+        return $this->controllerPrefix.Registry::get('defaultController');
+    }
+
+    /**
+     * returns action name parsed from request string
+     * @return string
+     */
+    public function getAction()
 	{
 		return $this->action;
 	}
 
-	public function getId()
+    /**
+     * returns object id (third parameter) parsed from request string
+     * @return string|integer
+     */
+    public function getId()
 	{
 		return $this->id;
 	}

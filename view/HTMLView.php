@@ -1,9 +1,12 @@
 <?php
 
 /**
- * Description of HTMLView
+ * IView implementation
+ * abstraction for Smarty Template Engine
  *
- * @author Deroy
+ * @package Alchemy Framework
+ * @version 1.0.0
+ * @author Deroy aka Roman Bulgakov
  */
 class HTMLView extends Smarty implements IView
 {
@@ -25,7 +28,7 @@ class HTMLView extends Smarty implements IView
 		$this->setConfigDir(Registry::getInstance()->rootDirectory . '/templates/config/');
 		$this->setCacheDir(Registry::getInstance()->rootDirectory . '/templates/cache/');
 
-		if(Registry::getInstance()->cachingEnabled) {
+		if (Registry::getInstance()->cachingEnabled) {
 			$this->caching = Smarty::CACHING_LIFETIME_CURRENT;
 		}
 		//$this->force_compile = TRUE;
@@ -71,7 +74,7 @@ class HTMLView extends Smarty implements IView
 	public function displayGenerated()
 	{
 		$this->cache_id = $this->settedCacheId;
-		return $this->display($this->templateName);
+		$this->display($this->templateName);
 	}
 
 	public function showDebug()
