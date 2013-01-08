@@ -101,7 +101,7 @@ abstract class Controller
 	 * @throws ControllerActionError
 	 * @throws Exception - in cause of fatal exception this is thrown to catch it at higher levels of abstraction
 	 */
-	public final function runAction($actionName, $data, $actionPrefix = NULL)
+	public final function runAction($actionName, $data = NULL, $actionPrefix = NULL)
 	{
 		//infinity recursion loop protection
 		static $recursion_level = 1;
@@ -133,7 +133,7 @@ abstract class Controller
 			//throw actionName CException if data catched from action equals to FALSE
 			//(you can also threw this exception type inside of action and define specific *ErrorHandler method)
 			if ($exec_state === FALSE) {
-				throw new ControllerActionError("action `$actionName` returned bad result", $actionName);
+				throw new ControllerActionError("action `$actionName` returned bad result", $actionPrefix . $actionName);
 			}
 			$this->afterAction($actionName);
 		} catch (ControllerActionError $exc) {
@@ -143,7 +143,7 @@ abstract class Controller
 			$handler = $exc->getHandler($this);
 			$this->runAction($handler, $exc, '');
 		} catch (DbException $dbExc) {
-			$this->runAction('dbErrorHandler', $dbExc);
+			$this->runAction('dbErrorHandler', $dbExc, '');
 		}
 		return TRUE;
 	}
@@ -176,16 +176,19 @@ abstract class Controller
 	 */
 	public function isCached($actionName, $id = NULL)
 	{
-		if ($this->isCacheable && ($this->view instanceof IView) && !Registry::getInstance()->showDebug) {
+		$res = FALSE;
+		if ($this->isCacheable && ($this->view instanceof IView)) {
 			if (empty($id)) {
 				$cache_id = $actionName;
 			} else {
 				$cache_id = $actionName . $id;
-				$this->view->setCacheId($cache_id);
 			}
-			return $this->view->isCached($this->view->getTemplateName(), $cache_id);
+			$this->view->setCacheId($cache_id);
+			$res = $this->view->isCached($this->view->getTemplateName(), $cache_id);
+		} else {
+			$this->view->disableCaching();
 		}
-		return FALSE;
+		return $res;
 	}
 
 	/**

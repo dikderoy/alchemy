@@ -16,42 +16,49 @@ class Autoloader
 		$file = $path . $class . ".php";
 		if (file_exists($file)) {
 			include_once $file;
+			return TRUE;
 		}
+		return FALSE;
 	}
 
 	public static function autoloadInterface($interface)
 	{
 		if (!Tools::includeFileIfExists($interface, SYSTEM_ROOT . "/interface_project/", 'php', FALSE)) {
-			Tools::includeFileIfExists($interface, SYSTEM_ROOT . "/interface/", 'php', FALSE);
+			return Tools::includeFileIfExists($interface, SYSTEM_ROOT . "/interface/", 'php', FALSE);
 		}
+		return TRUE;
 	}
 
 	public static function autoloadController($controller)
 	{
 		if (!Tools::includeFileIfExists($controller, SYSTEM_ROOT . "/controller_project/", 'php', FALSE)) {
-			Tools::includeFileIfExists($controller, SYSTEM_ROOT . "/controller/", 'php', FALSE);
+			return Tools::includeFileIfExists($controller, SYSTEM_ROOT . "/controller/", 'php', FALSE);
 		}
+		return TRUE;
 	}
 
 	public static function autoloadLibrary($lib)
 	{
 		if (!Tools::includeFileIfExists($lib, SYSTEM_ROOT . "/lib_project/", 'php', FALSE)) {
-			Tools::includeFileIfExists($lib, SYSTEM_ROOT . "/lib/", 'php', FALSE);
+			return Tools::includeFileIfExists($lib, SYSTEM_ROOT . "/lib/", 'php', FALSE);
 		}
+		return TRUE;
 	}
 
 	public static function autoloadView($view)
 	{
 		if (!Tools::includeFileIfExists($view, SYSTEM_ROOT . "/view_project/", 'php', FALSE)) {
-			Tools::includeFileIfExists($view, SYSTEM_ROOT . "/view/", 'php', FALSE);
+			return Tools::includeFileIfExists($view, SYSTEM_ROOT . "/view/", 'php', FALSE);
 		}
+		return TRUE;
 	}
 
 	public static function autoloadModel($model)
 	{
 		if (!Tools::includeFileIfExists($model, SYSTEM_ROOT . '/model_project/', 'php', FALSE)) {
-			Tools::includeFileIfExists($model, SYSTEM_ROOT . '/model/', 'php', FALSE);
+			return Tools::includeFileIfExists($model, SYSTEM_ROOT . '/model/', 'php', FALSE);
 		}
+		return TRUE;
 	}
 
 }

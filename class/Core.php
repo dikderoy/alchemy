@@ -92,11 +92,11 @@ class Core extends SingletoneModel implements ISingletone
 			} else {
 				throw new Exception('router class does not implements IRouter interface', 500);
 			}
-		} catch (Exception $exc) {
+		} catch (DbException $exc) {
 			$this->error = TRUE;
 			//$this->initErrorHandler($exc);
 			Registry::set('initException', $exc);
-		} catch (DbException $exc) {
+		} catch (Exception $exc) {
 			$this->error = TRUE;
 			//$this->initErrorHandler($exc);
 			Registry::set('initException', $exc);
@@ -119,7 +119,10 @@ class Core extends SingletoneModel implements ISingletone
 	{
 		if ($this->output instanceof IView) {
 			if (Registry::getInstance()->showDebug) {
-				$this->output->showDebug($this->router->getParamsArray(), Registry::getCurrentUser()->__toArray(array('login', '__isAuthorized', '__isLoadedObject')));
+				$this->output->showDebug(
+					$this->router->getParamsArray(),
+					Registry::getCurrentUser()->__toArray(array('login', '__isAuthorized', '__isLoadedObject'))
+				);
 			}
 			$this->output->displayGenerated();
 		} elseif (!empty($this->output)) {

@@ -27,10 +27,11 @@ $system_config = array(
 	//debug_display
 	'showDebug' => TRUE,
 	// bool - defines whatever debug info (post, get, session, cookie arrays print_r()) must be shown or not
-	'showEnveronmentDebug' => FALSE,
+	'showEnveronmentDebug' => TRUE,
 	// bool - defines whatever debug var_dump() function executed on response data
 	'showResponseVardump' => FALSE,
 	// int - define a lifetime of cookies in seconds
 	'cookiesLifetime' => 40000,
-	'userSupport' => TRUE
+	'userSupport' => TRUE,
+	//'cachingEnabled' => TRUE
 );

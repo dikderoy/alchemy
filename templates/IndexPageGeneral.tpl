@@ -1,4 +1,7 @@
 {extends file="General.tpl"}
+{block name="head-extended"}
+<link href="/css_project/main.css" rel="stylesheet">
+{/block}
 {block name="main"}
 <div class="container">
 	<div class="row-fluid">
@@ -10,7 +13,7 @@
 			</address>
 		</div>
 
-		<div class="span10 well well-small">
+		<div class="span10">
 			{if isset($error_info)}
 				{block name="error"}
 				<div class="alert alert-error">

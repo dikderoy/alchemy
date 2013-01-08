@@ -29,10 +29,10 @@ abstract class ObjectModel
 	const F_TYPE_ANY = 12;
 
 	/**
-	 * defines key of identificator field related to db e.g. name of PRIMARY_ID db field
+	 * defines key of identifier field related to db e.g. name of PRIMARY_ID db field
 	 * @var string
 	 */
-	protected $identificator = 'id';
+	protected $identifier = 'id';
 
 	/**
 	 * defines whatever object was loaded from DB or just created in PHP
@@ -84,17 +84,46 @@ abstract class ObjectModel
 	}
 
 	/**
-	 * returns object identificator field contents
+	 * returns object identifier field value
 	 * @return string|integer
 	 */
-	public function getID()
+	public function getId()
 	{
-		return $this->{$this->identificator};
+		return $this->{$this->identifier};
 	}
 
 	/**
+	 * returns object identifier field name
+	 * @return string
+	 */
+	public function getIdFieldName()
+	{
+		return $this->identifier;
+	}
+
+	/**
+	 * returns table name which object is related to
+	 * @return string
+	 */
+	public function getDbTable()
+	{
+		return $this->__dbTable;
+	}
+
+	/**
+	 * returns field definitions array of object
+	 * @return array
+	 */
+	public function getFieldDefinitions()
+	{
+		return $this->__fieldDefinitions;
+	}
+
+
+
+	/**
 	 * use this if you want to properly load object
-	 * wich has protected or private db-related properties
+	 * which has protected or private db-related properties
 	 * @param string $word
 	 * @return ObjectModel
 	 */
@@ -126,8 +155,8 @@ abstract class ObjectModel
 	{
 		if (empty($id)) {
 			return FALSE;
-		} elseif (isset($this->__fieldDefinitions[$this->identificator][self::FP_VALIDATOR])) {
-			return call_user_func('Validate::' . $this->__fieldDefinitions[$this->identificator][self::FP_VALIDATOR], $id);
+		} elseif (isset($this->__fieldDefinitions[$this->identifier][self::FP_VALIDATOR])) {
+			return call_user_func('Validate::' . $this->__fieldDefinitions[$this->identifier][self::FP_VALIDATOR], $id);
 		}
 		return TRUE;
 	}
@@ -138,14 +167,14 @@ abstract class ObjectModel
 	 */
 	protected function load($id = NULL)
 	{
-		$q = Db::select($this->__dbFields)->from($this->__dbTable)->where(array($this->identificator => $id))->limit(1)->execute();
+		$q = Db::select($this->__dbFields)->from($this->__dbTable)->where(array($this->identifier => $id))->limit(1)->execute();
 		if ($q->fetchIntoObject($this)) {
 			//if ok set object as loaded and deconservate fields
 			$this->__isLoadedObject = TRUE;
 			$this->deconservateFields();
 		} else {
-			//just assign id to identificator field
-			$this->{$this->identificator} = $id;
+			//just assign id to identifier field
+			$this->{$this->identifier} = $id;
 		}
 	}
 
@@ -162,7 +191,7 @@ abstract class ObjectModel
 		$fields = $this->getPreparedFieldCollection($fields, $includeID);
 		$result = Db::insert($fields)->into($this->__dbTable)->limit(1)->execute();
 		if ($result->rowsAffected() > 0) {
-			$this->id = Db::getLastInsertId();
+			$this->{$this->identifier} = Db::getLastInsertId();
 			return TRUE;
 		}
 		return FALSE;
@@ -177,11 +206,11 @@ abstract class ObjectModel
 	 */
 	public function update($fields = NULL)
 	{
-		if (empty($this->{$this->identificator})) {
+		if (empty($this->{$this->identifier})) {
 			return FALSE;
 		}
 		$fields = $this->getPreparedFieldCollection($fields, FALSE);
-		$result = Db::update($this->__dbTable)->set($fields)->where(array($this->identificator => $this->{$this->identificator}))->limit(1)->execute();
+		$result = Db::update($this->__dbTable)->set($fields)->where(array($this->identifier => $this->{$this->identifier}))->limit(1)->execute();
 		if ($result->rowsAffected() > 0) {
 			return TRUE;
 		}
@@ -198,11 +227,11 @@ abstract class ObjectModel
 		if (empty($this->__dbTable) || empty($this->__dbFields)) {
 			return FALSE;
 		}
-		if (empty($this->{$this->identificator})) {
+		if (empty($this->{$this->identifier})) {
 			return $this->add($fields);
-		} elseif ($this->__isLoadedObject && !empty($this->{$this->identificator})) {
+		} elseif ($this->__isLoadedObject && !empty($this->{$this->identifier})) {
 			return $this->update($fields);
-		} elseif (!$this->__isLoadedObject && !empty($this->{$this->identificator})) {
+		} elseif (!$this->__isLoadedObject && !empty($this->{$this->identifier})) {
 			return $this->add($fields, TRUE);
 		}
 		return FALSE;
@@ -215,10 +244,10 @@ abstract class ObjectModel
 	 */
 	public function delete()
 	{
-		if (!$this->__isLoadedObject || empty($this->{$this->identificator})) {
+		if (!$this->__isLoadedObject || empty($this->{$this->identifier})) {
 			return FALSE;
 		}
-		$result = Db::delete($this->__dbTable)->where(array($this->identificator => $this->{$this->identificator}))->limit(1)->execute();
+		$result = Db::delete($this->__dbTable)->where(array($this->identifier => $this->{$this->identifier}))->limit(1)->execute();
 		if ($result->rowsAffected() > 0) {
 			return TRUE;
 		}
@@ -228,7 +257,7 @@ abstract class ObjectModel
 	/**
 	 * validates fields before add() and update() operations
 	 * @param array $fields - fields, values of wich should be validated
-	 * @param boolean $includeID (defaults to TRUE) - defines whatever to validate and include identificator field or not
+	 * @param boolean $includeID (defaults to TRUE) - defines whatever to validate and include identifier field or not
 	 * @param array $error - reference to array contain field names wich does not passed validation
 	 * @return boolean|array - array of fields to operate over if they passed validation, FALSE overwise
 	 */
@@ -240,7 +269,7 @@ abstract class ObjectModel
 		$error = array();
 		$success = array();
 		foreach ($fields as $field) {
-			if (!$includeID && $field === $this->identificator) {
+			if (!$includeID && $field === $this->identifier) {
 				//if ID must be excluded from validation list we will skip step
 				continue;
 			}
@@ -310,7 +339,7 @@ abstract class ObjectModel
 	 * validated to meet requirements and properly prepared to place into DB
 	 *
 	 * @param array $fields - list of fields by name to validate and prepare
-	 * @param boolean $includeID - whatever to include identificator field to process
+	 * @param boolean $includeID - whatever to include identifier field to process
 	 * @return array fields with values validated and prepared (e.g. serialized)
 	 * @throws Exception
 	 */

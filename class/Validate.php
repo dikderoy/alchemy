@@ -23,7 +23,7 @@ abstract class Validate
 
 	public static function isValidName($text)
 	{
-		$ereg = "#^[-\S]{2,}$#";
+		$ereg = "#^[-\S\s]{2,}$#";
 		$text = trim($text);
 
 		return self::isValidPrototype($ereg, $text);

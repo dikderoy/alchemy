@@ -54,7 +54,7 @@ interface IView
 	 * @param string|integer|null $compile_id
 	 * @return bool
 	 */
-	public function isCached($template, $cache_id = NULL, $compile_id = NULL);
+	public function isCached($template = NULL, $cache_id = NULL, $compile_id = NULL);
 
 	/**
 	 * set current view cache ID
@@ -62,4 +62,10 @@ interface IView
 	 * @return bool
 	 */
 	public function setCacheId($cacheID);
+
+	/**
+	 * disables caching functions on current instance
+	 * @return void
+	 */
+	public function disableCaching();
 }

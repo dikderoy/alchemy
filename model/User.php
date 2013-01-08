@@ -5,7 +5,7 @@ class User extends ObjectModel
 
 	const SEC_TOKEN_NAME = 'sec_token';
 
-	protected $identificator = 'uid';
+	protected $identifier = 'uid';
 	protected $__dbTable = 'user';
 	protected $__fieldDefinitions = array(
 		'uid' => array(
