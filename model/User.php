@@ -105,7 +105,7 @@ class User extends ObjectModel
 
 	/**
 	 * finds out who is current user and returns a link to its Object
-	 *
+	 * @param string $login
 	 * @return User
 	 */
 	public static function getUser($login = NULL)
@@ -118,15 +118,24 @@ class User extends ObjectModel
 			Registry::setCurrentUser(User::getUserByUID($_SESSION['user']['uid']));
 		} else {
 			$_SESSION['user'] = NULL;
-			Registry::setCurrentUser(new PublicUser());
+			Registry::setCurrentUser(static::getPublicUser());
 		}
 
 		return Registry::getCurrentUser();
 	}
 
+	public static function getPublicUser()
+	{
+		$publicUser = new static();
+		$publicUser->accessLevel = 4;
+		$publicUser->login = 'Guest';
+		$publicUser->name = 'Guest';
+		return $publicUser;
+	}
+
 	/**
 	 * return User instance by Login
-	 * @param string $id
+	 * @param string $word
 	 * @return User
 	 */
 	public static function getUserByLogin($word)
@@ -134,23 +143,23 @@ class User extends ObjectModel
 		//get actual class name
 		$className = get_called_class();
 		//create a blank instance of class to get access to properties
-		$propertyStack = new $className();
+		$propertyStack = new static();
 		//perform ID param check
 		if ($propertyStack->onConstructCheck($word)) {
 			$res = Db::select()->from($propertyStack->__dbTable)->where(array('login' => $word))->limit(1)->execute();
 			$instance = $res->fetchObject($className);
-			if ($instance instanceof $className) {
+			if ($instance instanceof static) {
 				$instance->__isLoadedObject = TRUE;
-				$instance->deconservateFields();
+				$instance->unpackFields();
 				return $instance;
 			}
 		}
-		return new PublicUser();
+		return static::getPublicUser();
 	}
 
 	/**
 	 * return User instance by UID
-	 * @param string $word
+	 * @param string $uid
 	 * @return User
 	 */
 	public static function getUserByUID($uid)
@@ -159,18 +168,17 @@ class User extends ObjectModel
 	}
 
 	/**
-	 * authorizing user who tryes to get access
+	 * authorizing user who tries to get access
 	 * @param string $login
 	 * @param string $pass
 	 * @return int (1 on success | 0 on fail)
 	 */
 	public static function authorize($login, $pass)
 	{
-		if (empty($login)) {
+		if (empty($login) || empty($pass)) {
 			return FALSE;
 		}
 		$pretendent = self::getUserByLogin($login);
-		//usual auth process (getbylogin from DB , check pass, etc...)
 		if (!$pretendent->isRegistered()) {
 			return FALSE;
 		} elseif ($pretendent->login == $login && $pretendent->checkPass($pass)) {
@@ -192,24 +200,35 @@ class User extends ObjectModel
 
 	/**
 	 * returns full user name consists of surname, name, fathername field's values separated by space
-	 * @return type
+	 * @return string
 	 */
 	public function getFullName()
 	{
 		return "{$this->surname} {$this->name} {$this->fathername}";
 	}
 
+	/**
+	 * find out whatever this user is registered one
+	 * (info is loaded from db)
+	 * @return bool
+	 */
 	public function isRegistered()
 	{
 		return $this->__isLoadedObject;
 	}
 
+	/**
+	 * find out whatever this user is passed authorization
+	 * @return bool
+	 */
 	public function isAuthorized()
 	{
-		if ($this->checkSecurityToken($_COOKIE[self::SEC_TOKEN_NAME]) && $this->isRegistered()) {
-			return $this->__isAuthorized = TRUE;
+		if(!$this->__isAuthorized) {
+			if ($this->checkSecurityToken($_COOKIE[self::SEC_TOKEN_NAME]) && $this->isRegistered()) {
+				$this->__isAuthorized = TRUE;
+			}
 		}
-		return $this->__isAuthorized = FALSE;
+		return $this->__isAuthorized;
 	}
 
 	/**
@@ -238,7 +257,7 @@ class User extends ObjectModel
 		$this->destroySecurityToken();
 		session_destroy();
 		$this->__isAuthorized = FALSE;
-		Registry::setCurrentUser(new PublicUser());
+		Registry::setCurrentUser(static::getPublicUser());
 	}
 
 	/**
@@ -282,8 +301,8 @@ class User extends ObjectModel
 
 	/**
 	 * generates word hash (currently MD5 Hash is used)
-	 * @param type $password
-	 * @return type
+	 * @param string $password
+	 * @return string
 	 */
 	public function generatePswdHash($password)
 	{
@@ -312,7 +331,7 @@ class User extends ObjectModel
 
 	/**
 	 * checks if given password is valid
-	 * @param type $pass
+	 * @param string $pass
 	 * @return boolean
 	 */
 	public function checkPass($pass)
@@ -326,7 +345,7 @@ class User extends ObjectModel
 
 	/**
 	 * check whatever user has privilege by id
-	 * @param int $privilege_id
+	 * @param int $privilegeID
 	 * @return boolean
 	 */
 	public function hasPrivilege($privilegeID)
@@ -336,22 +355,6 @@ class User extends ObjectModel
 		} else {
 			return FALSE;
 		}
-	}
-
-}
-
-/**
- * represent a Public User connected to a system
- */
-class PublicUser extends User
-{
-
-	public function __construct()
-	{
-		parent::__construct();
-		$this->accessLevel = 4;
-		$this->login = 'Guest';
-		$this->name = 'Guest';
 	}
 
 }

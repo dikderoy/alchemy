@@ -14,8 +14,8 @@ abstract class ObjectModel
 	/* field's property names for definition collection */
 
 	const FP_VALIDATOR = 1;
-	const FP_CONSERVATOR = 2;
-	const FP_DECONSERVATOR = 3;
+	const FP_PACKAGER = 2;
+	const FP_UNPACKER = 3;
 	const FP_TYPE = 4;
 	const FP_SIZE = 5;
 	const FP_REQUIRED = 6;
@@ -42,13 +42,13 @@ abstract class ObjectModel
 	protected $__isLoadedObject = FALSE;
 
 	/**
-	 * defines name of table in DB to wich object is(or must be) related(saved to)
+	 * defines name of table in DB to which object is(or must be) related(saved to)
 	 * @var string
 	 */
 	protected $__dbTable;
 
 	/**
-	 * defines fields of object wich are related to DB entry
+	 * defines fields of object which are related to DB entry
 	 * only fields in this list can be saved to DB as entry
 	 * @var array
 	 */
@@ -124,26 +124,24 @@ abstract class ObjectModel
 	/**
 	 * use this if you want to properly load object
 	 * which has protected or private db-related properties
-	 * @param string $word
+	 * @param string $id
 	 * @return ObjectModel
 	 */
 	public static function protectedInstanceLoad($id = NULL)
 	{
-		//get actual class name
-		$className = get_called_class();
 		//create a blank instance of class to get access to properties
-		$propertyStack = new $className();
+		$propertyStack = new static();
 		//perform ID param check
 		if ($propertyStack->onConstructCheck($id)) {
-			$res = Db::select()->from($propertyStack->__dbTable)->where(array($propertyStack->identificator => $id))->limit(1)->execute();
-			$userInstance = $res->fetchObject($className);
-			if ($userInstance instanceof User) {
-				$userInstance->__isLoadedObject = TRUE;
-				$userInstance->deconservateFields();
-				return $userInstance;
+			$res = Db::select()->from($propertyStack->__dbTable)->where(array($propertyStack->identifier => $id))->limit(1)->execute();
+			$instance = $res->fetchObject(get_called_class());
+			if ($instance instanceof static) {
+				$instance->__isLoadedObject = TRUE;
+				$instance->unpackFields();
+				return $instance;
 			}
 		}
-		return new $className();
+		return new static();
 	}
 
 	/**
@@ -169,9 +167,9 @@ abstract class ObjectModel
 	{
 		$q = Db::select($this->__dbFields)->from($this->__dbTable)->where(array($this->identifier => $id))->limit(1)->execute();
 		if ($q->fetchIntoObject($this)) {
-			//if ok set object as loaded and deconservate fields
+			//if ok set object as loaded and restore fields structure
 			$this->__isLoadedObject = TRUE;
-			$this->deconservateFields();
+			$this->unpackFields();
 		} else {
 			//just assign id to identifier field
 			$this->{$this->identifier} = $id;
@@ -218,7 +216,7 @@ abstract class ObjectModel
 	}
 
 	/**
-	 * add or update entry in DB - intellyguess
+	 * add or update entry in DB - intellectual guess
 	 * @param array $fields - array containing field names - set this if you wish to save only specified fields
 	 * @return boolean
 	 */
@@ -256,10 +254,10 @@ abstract class ObjectModel
 
 	/**
 	 * validates fields before add() and update() operations
-	 * @param array $fields - fields, values of wich should be validated
+	 * @param array $fields - fields, values of which should be validated
 	 * @param boolean $includeID (defaults to TRUE) - defines whatever to validate and include identifier field or not
-	 * @param array $error - reference to array contain field names wich does not passed validation
-	 * @return boolean|array - array of fields to operate over if they passed validation, FALSE overwise
+	 * @param array $error - reference to array contain field names which does not passed validation
+	 * @return boolean|array - array of fields to operate over if they passed validation, FALSE otherwise
 	 */
 	protected function validateFields($fields = NULL, $includeID = TRUE, &$error = NULL)
 	{
@@ -354,22 +352,22 @@ abstract class ObjectModel
 			throw new Exception(__METHOD__ . " fields: [" . implode(',', $error_fields) . "] does not pass validation");
 		}
 		//prepare fields to be stored in db
-		$fields = $this->conservateFields($fields);
+		$fields = $this->packFields($fields);
 
 		return $fields;
 	}
 
 	/**
-	 * prepares fied values to be saved into DB,
+	 * prepares fields values to be saved into DB,
 	 * e.g. serializes them
 	 * @param array $fields list of fields to prepare
 	 * @return array
 	 */
-	protected function conservateFields($fields)
+	protected function packFields($fields)
 	{
 		$ready = array();
 		foreach ($fields as $field => $value) {
-			if (empty($this->__fieldDefinitions[$field][self::FP_CONSERVATOR])) {
+			if (empty($this->__fieldDefinitions[$field][self::FP_PACKAGER])) {
 				switch ($this->__fieldDefinitions[$field][self::FP_TYPE]) {
 					case self::F_TYPE_OBJECT:
 					case self::F_TYPE_ARRAY:
@@ -383,7 +381,7 @@ abstract class ObjectModel
 						break;
 				}
 			} else {
-				$ready[$field] = call_user_func($this->__fieldDefinitions[$field][self::FP_CONSERVATOR], $value);
+				$ready[$field] = call_user_func($this->__fieldDefinitions[$field][self::FP_PACKAGER], $value);
 			}
 		}
 
@@ -393,12 +391,12 @@ abstract class ObjectModel
 	/**
 	 * restores original field values after they was retrieved from DB
 	 * depends on field TYPE defined in __fieldDefinitions[]
-	 * or on field DECONSERVATOR callback provided in __fieldDefinitions[]
+	 * or on field PACKAGER callback provided in __fieldDefinitions[]
 	 */
-	protected function deconservateFields()
+	protected function unpackFields()
 	{
 		foreach ($this->__dbFields as $field) {
-			if (empty($this->__fieldDefinitions[$field][self::FP_DECONSERVATOR])) {
+			if (empty($this->__fieldDefinitions[$field][self::FP_UNPACKER])) {
 				switch ($this->__fieldDefinitions[$field][self::FP_TYPE]) {
 					case self::F_TYPE_OBJECT:
 					case self::F_TYPE_ARRAY:
@@ -411,7 +409,7 @@ abstract class ObjectModel
 						break;
 				}
 			} else {
-				$this->{$field} = call_user_func($this->__fieldDefinitions[$field][self::FP_DECONSERVATOR], $this->{$field});
+				$this->{$field} = call_user_func($this->__fieldDefinitions[$field][self::FP_UNPACKER], $this->{$field});
 			}
 		}
 	}

@@ -13,12 +13,12 @@
  * @author Deroy aka Roman Bulgakov
  * @uses Db main db control class
  * @uses DbException exception class
-  */
+ */
 class DbQuery
 {
 
 	/**
-	 * statement object (on wich operations will be performed)
+	 * statement object (on which operations will be performed)
 	 * @var PDOStatement
 	 */
 	protected $statement;
@@ -42,10 +42,10 @@ class DbQuery
 	protected $query;
 
 	/**
-	 * query modificant (e.g. DISTINCT)
+	 * query modifier (e.g. DISTINCT)
 	 * @var string
 	 */
-	protected $modificant;
+	protected $modifier;
 
 	/**
 	 * array of cols used in query
@@ -80,7 +80,7 @@ class DbQuery
 	protected $whereValueSet = array();
 
 	/**
-	 * orderby clause
+	 * order-by clause
 	 * @var array
 	 */
 	protected $orderBy = array();
@@ -98,7 +98,7 @@ class DbQuery
 	protected $limit;
 
 	/**
-	 * array of values for insert or update queryes
+	 * array of values for insert or update queries
 	 * as key=>value
 	 * @var array
 	 */
@@ -112,19 +112,19 @@ class DbQuery
 
 	/**
 	 * returns PDOStatement object for direct use
-	 * or FALSE if current instance of DbQuery doesnt have prepared object
+	 * or FALSE if current instance of DbQuery does not have prepared object
 	 * @return PDOStatement
 	 */
 	public function getSTO()
 	{
-		if($this->isPrepared()) {
+		if ($this->isPrepared()) {
 			return $this->statement;
 		}
 		return FALSE;
 	}
 
 	/**
-	 * returns count of queryes executed by this instance of DbQuery
+	 * returns count of queries executed by this instance of DbQuery
 	 * @return integer
 	 */
 	public function getExecuteCount()
@@ -138,7 +138,7 @@ class DbQuery
 	 */
 	public function getQueryString()
 	{
-		if($this->isPrepared()) {
+		if ($this->isPrepared()) {
 			return $this->statement->queryString;
 		}
 		return $this->query;
@@ -172,12 +172,12 @@ class DbQuery
 	}
 
 	/**
-	 * indicates whatever statement was executed or not
-	 * @var boolean
+	 * find out whatever statement was executed or not
+	 * @return boolean
 	 */
 	public function isExecuted()
 	{
-		if($this->isPrepared() && $this->executeCount > 0) {
+		if ($this->isPrepared() && $this->executeCount > 0) {
 			return TRUE;
 		}
 
@@ -191,7 +191,7 @@ class DbQuery
 	 */
 	public function __destruct()
 	{
-		if($this->isExecuted()) {
+		if ($this->isExecuted()) {
 			$this->statement->closeCursor();
 		}
 		Db::getInstance()->reportQueryes($this);
@@ -216,16 +216,16 @@ class DbQuery
 	 * accepts array () where:
 	 * each element is column name
 	 *
-	 * or number of arguments each of wich
+	 * or number of arguments each of which
 	 * is a string defining column name
 	 * @param array $args
-	 * @param $_..
+	 * @param string $_ [optional]
 	 * @return DbQuery
 	 */
-	public function select($args = NULL)
+	public function select($args = NULL, $_ = NULL)
 	{
 		$this->queryType = Db::Q_TYPE_SELECT;
-		if(empty($args)) {
+		if (empty($args)||empty($_)) {
 			return $this;
 		}
 		if (!is_array($args)) {
@@ -243,24 +243,30 @@ class DbQuery
 	 * value = field value
 	 * OR
 	 * any number of arrays (structurally identical to each other)
-	 * each of wich is a row in a multirow insert query
+	 * each of which is a row in a multi-row insert query
 	 * @param array $args
+	 * @param array $_ [optional]
 	 * @return DbQuery
 	 * @throws DbException
 	 */
-	public function insert($args)
+	public function insert($args, $_ = NULL)
 	{
-		$args = func_get_args();
-		foreach ($args as $arg) {
-			if (is_array($arg)) {
-				array_push($this->values, $arg);
-				$this->queryType = Db::Q_TYPE_INSERT;
-			} else {
-				throw new DbException('SQL error - insert() - args is not an array', E_RECOVERABLE_ERROR);
+		$this->queryType = Db::Q_TYPE_INSERT;
+		if ($_ === NULL && is_array($args)) {
+			$this->values[0] = $args;
+			$this->what = array_keys($args);
+		} else {
+			$args = func_get_args();
+			$this->what = array_keys($args[0]);
+			foreach ($args as $arg) {
+				if (is_array($arg)) {
+					array_push($this->values, $arg);
+				} else {
+					throw new DbException('SQL error - insert() - args is not an array', E_RECOVERABLE_ERROR);
+				}
 			}
 		}
 
-		$this->what = array_keys($arg);
 
 		return $this;
 	}
@@ -298,7 +304,7 @@ class DbQuery
 	}
 
 	/**
-	 * set table from wich to delete
+	 * set table from which to delete
 	 * accepts string table name parameter
 	 * @param string $args
 	 * @return DbQuery
@@ -311,11 +317,11 @@ class DbQuery
 
 	/**
 	 * defines tables with witch query will work
-	 * used usualy with select but can be called elsewere
+	 * used usually with select but can be called elsewhere
 	 *
 	 * accepts string - table name
 	 * OR
-	 * any number of arguments each of wich
+	 * any number of arguments each of which
 	 * is a string containing table name
 	 * @param array $args
 	 * @return DbQuery
@@ -343,13 +349,13 @@ class DbQuery
 	/**
 	 * write argument contents to where clause
 	 * for complex WHERE conditions
-	 * @param string $cond
+	 * @param string $condition
 	 * @param array $args data to pass as where section parameters
 	 * @return DbQuery
 	 */
-	public function whereComplex($cond, $args = array())
+	public function whereComplex($condition, $args = array())
 	{
-		$this->where = $cond;
+		$this->where = $condition;
 		$this->whereValueSet = $args;
 		return $this;
 	}
@@ -370,10 +376,10 @@ class DbQuery
 	}
 
 	/**
-	 * sets fields by wich ORDER CLAUSE will work
-	 * accepts array of strings each of wich is field name
+	 * sets fields by which ORDER CLAUSE will work
+	 * accepts array of strings each of which is field name
 	 * OR
-	 * any number of arguments each of wich is a string contains field name
+	 * any number of arguments each of which is a string contains field name
 	 * @param array $args
 	 * @return DbQuery
 	 */
@@ -413,10 +419,8 @@ class DbQuery
 
 	/**
 	 * sets limit parameter of query
-	 * accepts int value of limit
-	 * OR
-	 * int value of limit , int value of offset
-	 * @param int $args
+	 * @param integer $num value of limit
+	 * @param null|integer $from value of offset
 	 * @return DbQuery
 	 */
 	public function limit($num, $from = NULL)
@@ -433,7 +437,7 @@ class DbQuery
 	protected function __select()
 	{
 		//SELECT HOW?
-		$mode = (empty($this->modificant)) ? "" : implode(",", $this->modificant);
+		$mode = (empty($this->modifier)) ? "" : $this->modifier;
 		//WHAT?
 		$cols = (empty($this->what)) ? "*" : implode(",", $this->what);
 		//WHERE TO FIND?
@@ -460,14 +464,12 @@ class DbQuery
 
 		if (is_array($this->values[0])) {
 			foreach ($this->values as $row) {
-				//sort values array alphabetically by keys
-				ksort($row);
 				//make keys like ":key"
 				$vals = array();
 				array_walk($row, array('Db', 'attachKeyColon'), array(&$vals));
 				array_push($this->readyValueSet, $vals);
 			}
-			$values = implode(',', array_keys($vals));
+			$values = implode(',', array_keys($this->readyValueSet[0]));
 		} else {
 			return FALSE;
 		}
@@ -576,15 +578,10 @@ class DbQuery
 		throw new DbException('unexpected value of LIMIT clause - may cause undefined behavior', E_PARSE);
 	}
 
-	public function fetchQueryString()
-	{
-		return $this->__make();
-	}
-
 	/**
 	 * forges query depending on data collected by construct methods
-	 * select, update, insert, delete, freeform and helpers
-	 * @return boolean|string
+	 * select, update, insert, delete, free-form and helpers
+	 * @return string
 	 * @throws DbException
 	 */
 	protected function __make()
@@ -593,14 +590,12 @@ class DbQuery
 		//set default values to registers
 		$this->readyValueSet = array();
 		$this->whereValueSet = array();
-		//sorting cols alphabetically
-		sort($this->what);
-		//enclose cols and table names in backquots
+		//enclose cols and table names in back-quotes
 		$this->what = array_map(array('Db', 'backquoEnclose'), $this->what);
 		try {
 			switch ($this->queryType) {
 				case Db::Q_TYPE_FREEFORM:
-					if(empty($this->query)) {
+					if (empty($this->query)) {
 						throw new DbException("FREEFORM query error - query is empty!", E_PARSE);
 					}
 					break;
@@ -615,6 +610,7 @@ class DbQuery
 					break;
 				case Db::Q_TYPE_DELETE:
 					$this->__delete();
+					break;
 				default:
 					break;
 			}
@@ -623,8 +619,6 @@ class DbQuery
 		} catch (DbException $exc) {
 			throw $exc;
 		}
-
-		return FALSE;
 	}
 
 	/**
@@ -632,11 +626,11 @@ class DbQuery
 	 */
 	public function clearQueryData()
 	{
-		if($this->isExecuted()) {
+		if ($this->isExecuted()) {
 			$this->statement->closeCursor();
 		}
 
-		$this->modificant = "";
+		$this->modifier = "";
 		$this->what = array();
 		$this->tables = array();
 		$this->where = "";
@@ -652,7 +646,9 @@ class DbQuery
 
 	/**
 	 * prepares statement
+	 * @param bool $forcePrepare prepare statement anyway
 	 * @return DbQuery
+	 * @throws DbException
 	 */
 	public function prepare($forcePrepare = FALSE)
 	{
@@ -668,16 +664,16 @@ class DbQuery
 	}
 
 	/**
-	 * executes statement previosly prepared with prepare()
+	 * executes statement previously prepared with prepare()
 	 *
-	 * @param array $values [optional] if given used as valueSet
+	 * @param array $valueSet [optional] if given used as valueSet
 	 * @return DbQuery
 	 * @throws DbException
 	 */
 	public function executePrepared($valueSet = NULL)
 	{
 		if (!$this->isPrepared()) {
-			return FALSE;
+			return $this;
 		}
 
 		if (!$valueSet) {
@@ -702,7 +698,7 @@ class DbQuery
 
 	/**
 	 * prepares and executes a statement
-	 * @param array $valueSet array containing all values what must be placed into prepared query as userdata
+	 * @param array $valueSet array containing all values what must be placed into prepared query as user-data
 	 * @return DbQuery
 	 */
 	public function execute($valueSet = NULL)
@@ -715,6 +711,7 @@ class DbQuery
 	 * instantly executes passed query
 	 * correct behavior depends on query string passed
 	 * @param string $query
+	 * @return DbQuery
 	 * @throws DbException
 	 */
 	public function instantExecute($query)
@@ -726,6 +723,18 @@ class DbQuery
 		} catch (PDOException $exc) {
 			throw new DbException("Db::failed to prepare and execute instant query: `$query`", E_RECOVERABLE_ERROR, $exc);
 		}
+	}
+
+	/**
+	 * return a string
+	 * fetched using __make()
+	 * from data given to construct methods chains:
+	 * select(),insert(),update(),delete()
+	 * @return string
+	 */
+	public function fetchQueryString()
+	{
+		return $this->__make();
 	}
 
 	/**
@@ -744,7 +753,7 @@ class DbQuery
 
 	/**
 	 * fetch next row of query result as an object of given class
-	 * @param string $class name of class wich instance should be returned
+	 * @param string $class name of class which instance should be returned
 	 * @param array $params array of parameters passed to class constructor
 	 * @return \boolean|object
 	 */
@@ -758,7 +767,7 @@ class DbQuery
 
 	/**
 	 * fetch results of query as array of objects of given class
-	 * @param string $class name of class wich instance should be returned
+	 * @param string $class name of class which instance should be returned
 	 * @param array $params array of parameters passed to class constructor
 	 * @return \boolean|array
 	 */
@@ -772,35 +781,39 @@ class DbQuery
 
 	/**
 	 * fetch next row of query result as array of key-paired values
-	 * @param boolean $wnum fetch with numerical keys or not
+	 * @param boolean $num fetch with numerical keys or not
 	 * @return boolean
 	 */
-	public function fetchArray($wnum = FALSE)
+	public function fetchArray($num = FALSE)
 	{
 		if ($this->isExecuted()) {
-			$wnum = ($wnum) ? PDO::FETCH_BOTH : PDO::FETCH_ASSOC;
-			return $this->statement->fetch($wnum);
+			$num = ($num) ? PDO::FETCH_BOTH : PDO::FETCH_ASSOC;
+			return $this->statement->fetch($num);
 		}
 		return FALSE;
 	}
 
 	/**
 	 * fetch next row of query result as array of key-paired values
-	 * @param boolean $wnum fetch with numerical keys or not
+	 * @param boolean $num fetch with numerical keys or not
 	 * @return boolean
 	 */
-	public function fetchArrayCollection($wnum = FALSE)
+	public function fetchArrayCollection($num = FALSE)
 	{
 		if ($this->isExecuted()) {
-			$wnum = ($wnum) ? PDO::FETCH_BOTH : PDO::FETCH_ASSOC;
-			return $this->statement->fetchAll($wnum);
+			$num = ($num) ? PDO::FETCH_BOTH : PDO::FETCH_ASSOC;
+			return $this->statement->fetchAll($num);
 		}
 		return FALSE;
 	}
 
+	/**
+	 * returns number of rows affected by last query executed
+	 * @return int
+	 */
 	public function rowsAffected()
 	{
-		if($this->isExecuted()) {
+		if ($this->isExecuted()) {
 			return $this->statement->rowCount();
 		}
 		return 0;

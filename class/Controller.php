@@ -76,7 +76,7 @@ abstract class Controller
 	 * method called before action run
 	 * @abstract
 	 */
-	protected function beforeAction($actionName)
+	protected function beforeAction($actionName, $data = NULL)
 	{
 		$this->initView($this->getActionTemplate($actionName));
 	}
@@ -125,7 +125,7 @@ abstract class Controller
 				//or fallback to default action
 				$actionName = Registry::getInstance()->defaultAction;
 			}
-			$this->beforeAction($actionName);
+			$this->beforeAction($actionName, $data);
 			if ($this->isCached($actionName, Registry::getInstance()->currentPageId)) {
 				return TRUE;
 			}
@@ -158,14 +158,15 @@ abstract class Controller
 	 */
 	public static final function runController($controllerName, $actionName, $itemId = NULL)
 	{
-		if (!class_exists($controllerName)) {
+		if (!is_subclass_of($controllerName,__CLASS__)) {
 			$controllerName = Core::getInstance()->getRouter()->getDefaultController();
 		}
 		$c = new $controllerName();
-		if ($c instanceof Controller) {
+		if ($c instanceof self) {
 			$c->runAction($actionName, $itemId);
+			return $c->getView();
 		}
-		return $c->getView();
+		return FALSE;
 	}
 
 	/**
