@@ -5,9 +5,9 @@
 {block name="main"}
 <div class="container">
 	<div class="row-fluid">
-		<div class="span2 well myface">
+		<div class="span2 rounded rounded-well">
 			<img src="/img_project/index/face.jpg">
-			<address>
+			<address class="rounded-caption">
 				<strong>Bulgakov Roman</strong><br>
 				PHP Developer<br>
 			</address>

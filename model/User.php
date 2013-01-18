@@ -1,5 +1,13 @@
 <?php
 
+/**
+ * model of User connected to a system
+ * used for resolve user-specific behavior
+ *
+ * @package Alchemy Framework
+ * @version 1.0.0
+ * @author Deroy aka Roman Bulgakov
+ */
 class User extends ObjectModel
 {
 
@@ -8,70 +16,70 @@ class User extends ObjectModel
 	protected $identifier = 'uid';
 	protected $__dbTable = 'user';
 	protected $__fieldDefinitions = array(
-		'uid' => array(
-			self::FP_TYPE => self::F_TYPE_STRING,
-			self::FP_SIZE => 64,
+		'uid'           => array(
+			self::FP_TYPE     => self::F_TYPE_STRING,
+			self::FP_SIZE     => 64,
 			self::FP_REQUIRED => TRUE
 		),
-		'login' => array(
-			self::FP_TYPE => self::F_TYPE_STRING,
-			self::FP_SIZE => 64,
-			self::FP_REQUIRED => TRUE,
+		'login'         => array(
+			self::FP_TYPE      => self::F_TYPE_STRING,
+			self::FP_SIZE      => 64,
+			self::FP_REQUIRED  => TRUE,
 			self::FP_VALIDATOR => 'isValidObjectName'
 		),
-		'password' => array(
-			self::FP_TYPE => self::F_TYPE_STRING,
-			self::FP_SIZE => 64,
-			self::FP_REQUIRED => TRUE,
+		'password'      => array(
+			self::FP_TYPE      => self::F_TYPE_STRING,
+			self::FP_SIZE      => 64,
+			self::FP_REQUIRED  => TRUE,
 			self::FP_VALIDATOR => 'isValidName'
 		),
 		'securityToken' => array(
 			self::FP_TYPE => self::F_TYPE_STRING,
 			self::FP_SIZE => 64,
 		),
-		'accessLevel' => array(
-			self::FP_TYPE => self::F_TYPE_INT,
-			self::FP_SIZE => 5,
+		'accessLevel'   => array(
+			self::FP_TYPE     => self::F_TYPE_INT,
+			self::FP_SIZE     => 5,
 			self::FP_REQUIRED => TRUE
 		),
-		'privileges' => array(
+		'privileges'    => array(
 			self::FP_TYPE => self::F_TYPE_ARRAY,
 		),
-		'name' => array(
-			self::FP_TYPE => self::F_TYPE_STRING,
-			self::FP_SIZE => 256,
-			self::FP_REQUIRED => TRUE,
+		'name'          => array(
+			self::FP_TYPE      => self::F_TYPE_STRING,
+			self::FP_SIZE      => 256,
+			self::FP_REQUIRED  => TRUE,
 			self::FP_VALIDATOR => 'isValidName'
 		),
-		'surname' => array(
-			self::FP_TYPE => self::F_TYPE_STRING,
-			self::FP_SIZE => 256,
+		'surname'       => array(
+			self::FP_TYPE      => self::F_TYPE_STRING,
+			self::FP_SIZE      => 256,
 			self::FP_VALIDATOR => 'isValidName'
 		),
-		'fathername' => array(
-			self::FP_TYPE => self::F_TYPE_STRING,
-			self::FP_SIZE => 256,
+		'fathername'    => array(
+			self::FP_TYPE      => self::F_TYPE_STRING,
+			self::FP_SIZE      => 256,
 			self::FP_VALIDATOR => 'isValidName'
 		),
-		'email' => array(
-			self::FP_TYPE => self::F_TYPE_STRING,
-			self::FP_SIZE => 256,
-			self::FP_REQUIRED => TRUE,
+		'email'         => array(
+			self::FP_TYPE      => self::F_TYPE_STRING,
+			self::FP_SIZE      => 256,
+			self::FP_REQUIRED  => TRUE,
 			self::FP_VALIDATOR => 'isValidEmail'
 		),
-		'phone' => array(
+		'phone'         => array(
 			self::FP_TYPE => self::F_TYPE_STRING,
 			self::FP_SIZE => 64,
 		),
-		'cityId' => array(
+		'cityId'        => array(
 			self::FP_TYPE => self::F_TYPE_INT,
 			self::FP_SIZE => 64,
 		),
-		'addressId' => array(
+		'addressId'     => array(
 			self::FP_TYPE => self::F_TYPE_INT,
 			self::FP_SIZE => 64,
 		),
-		'info' => array(
+		'info'          => array(
 			self::FP_TYPE => self::F_TYPE_STRING,
 			self::FP_SIZE => 5000,
 		)
@@ -97,6 +105,14 @@ class User extends ObjectModel
 	 */
 	protected $__isAuthorized = FALSE;
 
+	/**
+	 * attaches PREFIX to table name configured
+	 * creates user instance
+	 *
+	 * WARNING: this should only be used to create blank instances of User
+	 * to load user use getUser(),getUserByLogin(),getUserByUID() instead
+	 * @param null|string $id
+	 */
 	public function __construct($id = NULL)
 	{
 		$this->__dbTable = __DBPREFIX__ . $this->__dbTable;
@@ -105,6 +121,7 @@ class User extends ObjectModel
 
 	/**
 	 * finds out who is current user and returns a link to its Object
+	 * (if user is not registered returns Public User using static::getPublicUser())
 	 * @param string $login
 	 * @return User
 	 */
@@ -112,8 +129,7 @@ class User extends ObjectModel
 	{
 		if ($login) {
 			Registry::setCurrentUser(User::getUserByLogin($login));
-		}
-		//session has user uid
+		} //session has user uid
 		elseif (!empty($_SESSION['user']['uid']) && !empty($_COOKIE[self::SEC_TOKEN_NAME])) {
 			Registry::setCurrentUser(User::getUserByUID($_SESSION['user']['uid']));
 		} else {
@@ -124,6 +140,10 @@ class User extends ObjectModel
 		return Registry::getCurrentUser();
 	}
 
+	/**
+	 * returns instance of User configured as Public User
+	 * @return User
+	 */
 	public static function getPublicUser()
 	{
 		$publicUser = new static();
@@ -171,7 +191,7 @@ class User extends ObjectModel
 	 * authorizing user who tries to get access
 	 * @param string $login
 	 * @param string $pass
-	 * @return int (1 on success | 0 on fail)
+	 * @return boolean
 	 */
 	public static function authorize($login, $pass)
 	{
@@ -199,12 +219,14 @@ class User extends ObjectModel
 	}
 
 	/**
-	 * returns full user name consists of surname, name, fathername field's values separated by space
+	 * returns full user name consists of surname, name, father's name field's values separated by space
 	 * @return string
 	 */
 	public function getFullName()
 	{
-		return "{$this->surname} {$this->name} {$this->fathername}";
+		$list = array($this->surname, $this->name, $this->fathername);
+		$list = array_filter($list);
+		return implode(" ", $list);
 	}
 
 	/**
@@ -223,7 +245,7 @@ class User extends ObjectModel
 	 */
 	public function isAuthorized()
 	{
-		if(!$this->__isAuthorized) {
+		if (!$this->__isAuthorized) {
 			if ($this->checkSecurityToken($_COOKIE[self::SEC_TOKEN_NAME]) && $this->isRegistered()) {
 				$this->__isAuthorized = TRUE;
 			}
@@ -233,7 +255,7 @@ class User extends ObjectModel
 
 	/**
 	 * initialize authorized user session
-	 * sets php-session and cookie variables to recognize user in future as 'authorized''
+	 * sets php-session and cookie variables to recognize user in future as 'authorized'
 	 * @return boolean
 	 */
 	public function startSession()
@@ -250,7 +272,7 @@ class User extends ObjectModel
 
 	/**
 	 *  ends user session (erases php-session and cookies)
-	 *  user will no longer be recognized as 'authorized''
+	 *  user will no longer be recognized as 'authorized'
 	 */
 	public function endSession()
 	{
@@ -310,14 +332,14 @@ class User extends ObjectModel
 	}
 
 	/**
-	 * generates new random password of given length consisting of [A-Za-z0-9] simbols
+	 * generates new random password of given length consisting of [A-Za-z0-9] symbols
 	 * @param int $length
 	 * @return string
 	 */
 	public function generatePassword($length)
 	{
 		list($usec, $sec) = explode(' ', microtime());
-		$rand_ofset = (float) $sec + ((float) $usec * 100000);
+		$rand_ofset = (float)$sec + ((float)$usec * 100000);
 		srand($rand_ofset);
 
 		$alfa = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM";

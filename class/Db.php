@@ -50,40 +50,43 @@ class Db extends SingletoneModel implements ISingletone
 	public $lastQuery;
 
 	/**
-	 * keeps track how much querys was executed by this instance
+	 * keeps track how much queries was executed by this instance
 	 * @var int
 	 */
 	protected $queriesTotal = 0;
 
 	/**
 	 * returns singleton instance of DB
+	 * @param null|array $config
 	 * @return Db
+	 * @throws DbException
 	 */
 	public static function getInstance($config = NULL)
 	{
 		if (is_null(self::$instance)) {
 			self::$instance = new self();
 		}
-
 		if (self::$instance->PDO instanceof PDO) {
-			return self::$instance;
-		} elseif (self::$instance->hasDbParameters()) {
-			self::$instance->connect();
 			return self::$instance;
 		} elseif (!empty($config)) {
 			self::$instance->setDbParameters($config);
+			if (self::$instance->hasDbParameters()) {
+				self::$instance->connect();
+			}
+			return self::$instance;
+		} elseif (self::$instance->hasDbParameters()) {
 			self::$instance->connect();
 			return self::$instance;
 		} else {
 			throw new DbException('error establishing connection to DB');
 		}
-
-		return self::$instance;
 	}
 
 	/**
 	 * sets parameters for connection to a server
+	 * @param array $config - required configuration data
 	 * @param array $options - additional options for PDO object
+	 * @return boolean
 	 */
 	public function setDbParameters($config, $options = array())
 	{
@@ -98,16 +101,23 @@ class Db extends SingletoneModel implements ISingletone
 		$this->login = $config->dbLogin;
 		$this->password = $config->dbPassword;
 		$this->options = $options;
+
+		return TRUE;
 	}
 
+	/**
+	 * check if all required Db parameters are available
+	 * @return bool
+	 */
 	public function hasDbParameters()
 	{
 		if (empty($this->dbDriver)
-				|| empty($this->serverAddress)
-				|| empty($this->dbName)
-				|| empty($this->charSet)
-				|| empty($this->login)
-				|| empty($this->password)) {
+			|| empty($this->serverAddress)
+			|| empty($this->dbName)
+			|| empty($this->charSet)
+			|| empty($this->login)
+			|| empty($this->password)
+		) {
 			return FALSE;
 		}
 
@@ -117,6 +127,7 @@ class Db extends SingletoneModel implements ISingletone
 	/**
 	 * initiate a connection to server
 	 * @param array $options - additional options for PDO object
+	 * @throws DbException
 	 */
 	public function connect($options = array())
 	{
@@ -134,6 +145,10 @@ class Db extends SingletoneModel implements ISingletone
 		}
 	}
 
+	/**
+	 * returns Id of last inserted entry
+	 * @return string
+	 */
 	public static function getLastInsertId()
 	{
 		return self::$instance->PDO->lastInsertId();
@@ -159,7 +174,7 @@ class Db extends SingletoneModel implements ISingletone
 	}
 
 	/**
-	 * add queryes reported by $o to query counter value
+	 * add queries reported by $o to query counter value
 	 * @param DbQuery $o
 	 */
 	public function reportQueryes(DbQuery $o)
@@ -167,13 +182,17 @@ class Db extends SingletoneModel implements ISingletone
 		$this->queriesTotal += $o->getExecuteCount();
 	}
 
+	/**
+	 * magic __toString conversion method
+	 * @return string
+	 */
 	public function __toString()
 	{
 		return "queryes total :: {$this->queriesTotal}";
 	}
 
 	/**
-	 * execute freeform instant query
+	 * execute free-form instant query
 	 * @param string $query
 	 * @return DbQuery
 	 */
@@ -204,7 +223,6 @@ class Db extends SingletoneModel implements ISingletone
 	 * accepts array () where:
 	 * each element is column name
 	 * @param array $args
-	 * @param $_..
 	 * @return DbQuery
 	 */
 	public static function select($args = NULL)
@@ -247,7 +265,7 @@ class Db extends SingletoneModel implements ISingletone
 	/**
 	 * start construction of delete
 	 *
-	 * set table from wich to delete
+	 * set table from which to delete
 	 * accepts string table name parameter
 	 * @param string $args
 	 * @return DbQuery
@@ -270,7 +288,7 @@ class Db extends SingletoneModel implements ISingletone
 	}
 
 	/**
-	 * returns string $elem enclosed in scobes "( )"
+	 * returns string $elem enclosed in parentheses "( )"
 	 * @param string $elem
 	 * @return string
 	 */
@@ -281,7 +299,7 @@ class Db extends SingletoneModel implements ISingletone
 	}
 
 	/**
-	 * alias to hmtlspecialchars()
+	 * escape HTML special symbols
 	 * @param string $elem
 	 * @return string
 	 */
@@ -293,9 +311,9 @@ class Db extends SingletoneModel implements ISingletone
 	}
 
 	/**
-	 * returns string $elem enclosed in backquotes " ` ` "
-	 * @param type $elem
-	 * @return type
+	 * returns string $elem enclosed in back-quotes " ` ` "
+	 * @param string $elem
+	 * @return string
 	 */
 	public static function backquoEnclose($elem)
 	{

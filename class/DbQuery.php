@@ -225,7 +225,7 @@ class DbQuery
 	public function select($args = NULL, $_ = NULL)
 	{
 		$this->queryType = Db::Q_TYPE_SELECT;
-		if (empty($args)||empty($_)) {
+		if (empty($args) && empty($_)) {
 			return $this;
 		}
 		if (!is_array($args)) {
@@ -266,8 +266,6 @@ class DbQuery
 				}
 			}
 		}
-
-
 		return $this;
 	}
 
@@ -299,7 +297,6 @@ class DbQuery
 		} else {
 			throw new DbException('SQL error - update - set() - args is not an array', E_RECOVERABLE_ERROR);
 		}
-
 		return $this;
 	}
 
@@ -413,7 +410,6 @@ class DbQuery
 				$this->orderDirection = 'ASC';
 				break;
 		}
-
 		return $this;
 	}
 
@@ -448,7 +444,6 @@ class DbQuery
 		$order = (empty($this->orderBy)) ? "" : " order by " . implode(",", $this->orderBy) . " " . $this->orderDirection;
 		//HOW MUCH?
 		$limit = $this->__limit();
-
 		return $this->query = "select " . $mode . " " . $cols . " from " . $tables . $cond . $order . $limit;
 	}
 
@@ -496,7 +491,6 @@ class DbQuery
 		//where clause
 		$cond = $this->__where();
 		$limit = $this->__limit();
-
 		return $this->query = "update " . $tables . " set " . implode(',', $set) . $cond . $limit;
 	}
 
@@ -510,7 +504,6 @@ class DbQuery
 		$tables = $this->__tables();
 		$cond = $this->__where();
 		$limit = $this->__limit();
-
 		return $this->query = "delete from " . $tables . $cond . $limit;
 	}
 
@@ -586,7 +579,6 @@ class DbQuery
 	 */
 	protected function __make()
 	{
-
 		//set default values to registers
 		$this->readyValueSet = array();
 		$this->whereValueSet = array();
@@ -614,7 +606,6 @@ class DbQuery
 				default:
 					break;
 			}
-
 			return $this->query;
 		} catch (DbException $exc) {
 			throw $exc;
@@ -675,7 +666,6 @@ class DbQuery
 		if (!$this->isPrepared()) {
 			return $this;
 		}
-
 		if (!$valueSet) {
 			$valueSet = array_merge($this->readyValueSet, $this->whereValueSet);
 		}
@@ -692,7 +682,6 @@ class DbQuery
 		} catch (PDOException $exc) {
 			throw new DbException("DB :: " . __METHOD__ . " - Failed to execute query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
 		}
-
 		return $this;
 	}
 

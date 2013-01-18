@@ -23,9 +23,9 @@ class ControllerUOME extends HTMLController
 		$this->setActionTemplate('Save', 'UOMEEditObject.tpl');
 	}
 
-	protected function beforeAction($actionName)
+	protected function beforeAction($actionName, $data = NULL)
 	{
-		parent::beforeAction($actionName);
+		parent::beforeAction($actionName, $data);
 
 		$this->data['site_title'] = 'Universal Object Editor';
 		$this->data['home_link'] = '/index_testrun.php?controller=UOME';
@@ -51,6 +51,7 @@ class ControllerUOME extends HTMLController
 	public function actionDefault($data)
 	{
 		$this->data['page_title'] = 'Select Class to work with';
+		$this->data['form_action'] = '?controller=UOME&action=select';
 	}
 
 	public function actionSelect()
