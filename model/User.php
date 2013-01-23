@@ -219,6 +219,17 @@ class User extends ObjectModel
 	}
 
 	/**
+	 * fake setter for securityToken
+	 * this is needed to prevent automatic setting
+	 * (token is not allowed to be set manually)
+	 * @param $securityToken
+	 */
+	public function setSecurityToken($securityToken)
+	{
+
+	}
+
+	/**
 	 * returns full user name consists of surname, name, father's name field's values separated by space
 	 * @return string
 	 */

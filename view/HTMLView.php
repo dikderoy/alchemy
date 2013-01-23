@@ -84,14 +84,23 @@ class HTMLView extends Smarty implements IView
 
 	/**
 	 * assign cache id
-	 * @param string $settedCacheId
+	 * @param string $cacheId
 	 * @return bool|void
 	 */
-	public function setCacheId($settedCacheId)
+	public function setCacheId($cacheId)
 	{
-		$this->cache_id = $settedCacheId;
+		$this->cache_id = $cacheId;
 	}
 
+	/**
+	 * finds out if cached version of template is available
+	 * and stores result for information
+	 * @param null|string $template
+	 * @param null|string $cache_id
+	 * @param null|string $compile_id
+	 * @param null|string $parent
+	 * @return bool
+	 */
 	public function isCached($template = NULL, $cache_id = NULL, $compile_id = NULL, $parent = NULL)
 	{
 		$this->isLoadedFromCache = parent::isCached($template, $cache_id, $compile_id, $parent);
@@ -160,7 +169,7 @@ class HTMLView extends Smarty implements IView
 		"\nisLoadedFromCache:";
 		echo ($this->isLoadedFromCache)?'true':'false';
 		echo "\r\n";
-		if (Registry::getInstance()->showEnveronmentDebug) {
+		if (Registry::getInstance()->showEnvironmentDebug) {
 			print "session:\r\n";
 			var_dump($_SESSION);
 			print "get\r\n";

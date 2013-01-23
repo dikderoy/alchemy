@@ -28,6 +28,7 @@
 </form>
 {/block}
 {block name="inner-content"}
+	<a href="{$object_edit_link}" class="btn btn-block btn-inverse">Create New Object of {$object_classname} class</a>
 	{foreach $list as $object}
 		{if $object@first}
 		<div class="well well-small">Total Objects listed:{$object@total}</div>

@@ -13,6 +13,23 @@ interface IRouter
 	public function parseRequest();
 
 	/**
+	 * construct a link to specified controller[,action,[id]]
+	 * according to rules of link parsing
+	 * @param string $controller
+	 * @param null|string $action
+	 * @param null|string|int $id
+	 * @return string
+	 */
+	public function makeLink($controller, $action = NULL, $id = NULL);
+
+	/**
+	 * fetches a string of GET parameters attached to link
+	 * @param array $list
+	 * @return string
+	 */
+	public function getParamString($list);
+
+	/**
 	 * returns request data
 	 */
 	public function getRequest();

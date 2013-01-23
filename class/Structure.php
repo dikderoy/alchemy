@@ -76,9 +76,9 @@ abstract class Structure
 	 * sets variables in class depending on keys in given array
 	 * @param array $settings key paired values to set within object
 	 */
-	public function setConfig($settings)
+	public function setConfig($settings = NULL)
 	{
-		if(empty($settings)) {
+		if (empty($settings) || !is_array($settings)) {
 			return;
 		}
 

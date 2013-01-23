@@ -163,10 +163,17 @@ abstract class ObjectModel
 	 * load procedure performed on construct
 	 * @param mixed $id
 	 */
-	protected function load($id = NULL)
+	protected function load($id = NULL, DbQuery $query = NULL)
 	{
-		$q = Db::select($this->__dbFields)->from($this->__dbTable)->where(array($this->identifier => $id))->limit(1)->execute();
-		if ($q->fetchIntoObject($this)) {
+		if(empty($query)) {
+			$query = Db::select($this->__dbFields)->from($this->__dbTable)->where(array($this->identifier => $id))->limit(1);
+		}
+		$query->execute();
+		$data = $query->fetchArray();
+		if (is_array($data) && count($data)>=count($this->__dbFields)) {
+			foreach($data as $field => $value){
+				$this->{$field}=$value;
+			}
 			//if ok set object as loaded and restore fields structure
 			$this->__isLoadedObject = TRUE;
 			$this->unpackFields();

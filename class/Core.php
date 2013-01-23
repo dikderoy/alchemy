@@ -95,6 +95,7 @@ class Core extends SingletoneModel implements ISingletone
 			}
 
 			$this->router = new RouterGet();
+			Registry::setRouter($this->router);
 			if ($this->router instanceof IRouter) {
 				$this->router->parseRequest();
 				Registry::getInstance()->currentController = $this->router->getController();

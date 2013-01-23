@@ -131,10 +131,14 @@ class UniversalObjectModelEditor
 		}
 
 		foreach ($fields as $field => $value) {
-			$o->{$field} = $value;
+			$setter = 'set'.$field;
+			if(method_exists($o, $setter)) {
+				$o->{$setter}($value);
+			} else {
+				$o->{$field} = $value;
+			}
 		}
 		$o->save();
-
 		return $o;
 	}
 }

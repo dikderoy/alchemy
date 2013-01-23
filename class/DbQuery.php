@@ -744,7 +744,7 @@ class DbQuery
 	 * fetch next row of query result as an object of given class
 	 * @param string $class name of class which instance should be returned
 	 * @param array $params array of parameters passed to class constructor
-	 * @return \boolean|object
+	 * @return object|boolean
 	 */
 	public function fetchObject($class, $params = NULL)
 	{
@@ -758,7 +758,7 @@ class DbQuery
 	 * fetch results of query as array of objects of given class
 	 * @param string $class name of class which instance should be returned
 	 * @param array $params array of parameters passed to class constructor
-	 * @return \boolean|array
+	 * @return object[]|boolean
 	 */
 	public function fetchObjectCollection($class, $params = NULL)
 	{
@@ -771,7 +771,7 @@ class DbQuery
 	/**
 	 * fetch next row of query result as array of key-paired values
 	 * @param boolean $num fetch with numerical keys or not
-	 * @return boolean
+	 * @return array|boolean
 	 */
 	public function fetchArray($num = FALSE)
 	{
@@ -785,7 +785,7 @@ class DbQuery
 	/**
 	 * fetch next row of query result as array of key-paired values
 	 * @param boolean $num fetch with numerical keys or not
-	 * @return boolean
+	 * @return array[]|boolean
 	 */
 	public function fetchArrayCollection($num = FALSE)
 	{

@@ -32,4 +32,25 @@ class RouterDir extends Router implements IRouter
 		}
 	}
 
+	/**
+	 * construct a link to specified controller[,action,[id]]
+	 * according to rules of link parsing
+	 * @param string $controller
+	 * @param null|string $action
+	 * @param null|string|int $id
+	 * @return string
+	 */
+	public function makeLink($controller, $action = NULL, $id = NULL)
+	{
+		$link = '/'.$controller;
+		if($action!==NULL) {
+			$link .= '/'.$action;
+		}
+		if($id!==NULL) {
+			$link .= '/'.$id;
+		}
+		return $link;
+	}
+
+
 }
