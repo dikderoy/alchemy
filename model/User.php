@@ -16,70 +16,62 @@ class User extends ObjectModel
 	protected $identifier = 'uid';
 	protected $__dbTable = 'user';
 	protected $__fieldDefinitions = array(
-		'uid'           => array(
+		'uid'            => array(
 			self::FP_TYPE     => self::F_TYPE_STRING,
 			self::FP_SIZE     => 64,
 			self::FP_REQUIRED => TRUE
 		),
-		'login'         => array(
+		'login'          => array(
 			self::FP_TYPE      => self::F_TYPE_STRING,
 			self::FP_SIZE      => 64,
 			self::FP_REQUIRED  => TRUE,
 			self::FP_VALIDATOR => 'isValidObjectName'
 		),
-		'password'      => array(
+		'password'       => array(
 			self::FP_TYPE      => self::F_TYPE_STRING,
 			self::FP_SIZE      => 64,
 			self::FP_REQUIRED  => TRUE,
 			self::FP_VALIDATOR => 'isValidName'
 		),
-		'securityToken' => array(
+		'security_token' => array(
 			self::FP_TYPE => self::F_TYPE_STRING,
 			self::FP_SIZE => 64,
 		),
-		'accessLevel'   => array(
-			self::FP_TYPE     => self::F_TYPE_INT,
-			self::FP_SIZE     => 5,
-			self::FP_REQUIRED => TRUE
-		),
-		'privileges'    => array(
-			self::FP_TYPE => self::F_TYPE_ARRAY,
-		),
-		'name'          => array(
+		'name'           => array(
 			self::FP_TYPE      => self::F_TYPE_STRING,
 			self::FP_SIZE      => 256,
 			self::FP_REQUIRED  => TRUE,
 			self::FP_VALIDATOR => 'isValidName'
 		),
-		'surname'       => array(
+		'surname'        => array(
 			self::FP_TYPE      => self::F_TYPE_STRING,
 			self::FP_SIZE      => 256,
 			self::FP_VALIDATOR => 'isValidName'
 		),
-		'fathername'    => array(
+		'middle_name'    => array(
 			self::FP_TYPE      => self::F_TYPE_STRING,
 			self::FP_SIZE      => 256,
 			self::FP_VALIDATOR => 'isValidName'
 		),
-		'email'         => array(
+		'email'          => array(
 			self::FP_TYPE      => self::F_TYPE_STRING,
 			self::FP_SIZE      => 256,
 			self::FP_REQUIRED  => TRUE,
 			self::FP_VALIDATOR => 'isValidEmail'
 		),
-		'phone'         => array(
+		'phone'          => array(
 			self::FP_TYPE => self::F_TYPE_STRING,
 			self::FP_SIZE => 64,
 		),
-		'cityId'        => array(
+		'city_id'        => array(
 			self::FP_TYPE => self::F_TYPE_INT,
 			self::FP_SIZE => 64,
 		),
-		'addressId'     => array(
+		'address_id'     => array(
 			self::FP_TYPE => self::F_TYPE_INT,
 			self::FP_SIZE => 64,
 		),
-		'info'          => array(
+		'info'           => array(
 			self::FP_TYPE => self::F_TYPE_STRING,
 			self::FP_SIZE => 5000,
 		)
@@ -87,16 +79,14 @@ class User extends ObjectModel
 	public $uid;
 	public $login;
 	protected $password;
-	protected $securityToken;
-	public $accessLevel;
-	public $privileges;
+	protected $security_token;
 	public $name;
 	public $surname;
-	public $fathername;
+	public $middle_name;
 	public $email;
 	public $phone;
-	public $cityId;
-	public $addressId;
+	public $city_id;
+	public $address_id;
 	public $info;
 
 	/**
@@ -104,20 +94,6 @@ class User extends ObjectModel
 	 * @var bool
 	 */
 	protected $__isAuthorized = FALSE;
-
-	/**
-	 * attaches PREFIX to table name configured
-	 * creates user instance
-	 *
-	 * WARNING: this should only be used to create blank instances of User
-	 * to load user use getUser(),getUserByLogin(),getUserByUID() instead
-	 * @param null|string $id
-	 */
-	public function __construct($id = NULL)
-	{
-		$this->__dbTable = __DBPREFIX__ . $this->__dbTable;
-		parent::__construct($id);
-	}
 
 	/**
 	 * finds out who is current user and returns a link to its Object
@@ -147,7 +123,6 @@ class User extends ObjectModel
 	public static function getPublicUser()
 	{
 		$publicUser = new static();
-		$publicUser->accessLevel = 4;
 		$publicUser->login = 'Guest';
 		$publicUser->name = 'Guest';
 		return $publicUser;
@@ -160,31 +135,28 @@ class User extends ObjectModel
 	 */
 	public static function getUserByLogin($word)
 	{
-		//get actual class name
-		$className = get_called_class();
-		//create a blank instance of class to get access to properties
-		$propertyStack = new static();
-		//perform ID param check
-		if ($propertyStack->onConstructCheck($word)) {
-			$res = Db::select()->from($propertyStack->__dbTable)->where(array('login' => $word))->limit(1)->execute();
-			$instance = $res->fetchObject($className);
-			if ($instance instanceof static) {
-				$instance->__isLoadedObject = TRUE;
-				$instance->unpackFields();
-				return $instance;
-			}
+		$pretender = new static(NULL, array('login' => $word));
+		if ($pretender->isRegistered()) {
+			return $pretender;
 		}
 		return static::getPublicUser();
 	}
 
 	/**
 	 * return User instance by UID
+	 *
+	 * if UID is not found - returns instance of Public User
 	 * @param string $uid
 	 * @return User
 	 */
 	public static function getUserByUID($uid)
 	{
-		return self::protectedInstanceLoad($uid);
+		$candidate = new static($uid);
+		if ($candidate->isRegistered()) {
+			return $candidate;
+		} else {
+			return static::getPublicUser();
+		}
 	}
 
 	/**
@@ -198,13 +170,13 @@ class User extends ObjectModel
 		if (empty($login) || empty($pass)) {
 			return FALSE;
 		}
-		$pretendent = self::getUserByLogin($login);
-		if (!$pretendent->isRegistered()) {
+		$pretender = self::getUserByLogin($login);
+		if (!$pretender->isRegistered()) {
 			return FALSE;
-		} elseif ($pretendent->login == $login && $pretendent->checkPass($pass)) {
-			return $pretendent->startSession();
+		} elseif ($pretender->login == $login && $pretender->checkPass($pass)) {
+			return $pretender->startSession();
 		} else {
-			$pretendent->endSession();
+			$pretender->endSession();
 		}
 		return FALSE;
 	}
@@ -215,11 +187,11 @@ class User extends ObjectModel
 	 */
 	public function setPassword($word)
 	{
-		$this->password = $this->generatePswdHash($word);
+		$this->password = $this->generatePasswordHash($word);
 	}
 
 	/**
-	 * fake setter for securityToken
+	 * fake setter for security_token
 	 * this is needed to prevent automatic setting
 	 * (token is not allowed to be set manually)
 	 * @param $securityToken
@@ -235,7 +207,7 @@ class User extends ObjectModel
 	 */
 	public function getFullName()
 	{
-		$list = array($this->surname, $this->name, $this->fathername);
+		$list = array($this->surname, $this->name, $this->middle_name);
 		$list = array_filter($list);
 		return implode(" ", $list);
 	}
@@ -298,11 +270,11 @@ class User extends ObjectModel
 	 */
 	public function createSecurityToken()
 	{
-		$this->securityToken = md5(uniqid(self::SEC_TOKEN_NAME . microtime(), TRUE));
+		$this->security_token = md5(uniqid(self::SEC_TOKEN_NAME . microtime(), TRUE));
 
-		if ($this->save(array('securityToken'))) {
-			setcookie(self::SEC_TOKEN_NAME, $this->securityToken, time() + Registry::getInstance()->cookiesLifetime, '/');
-			$_COOKIE[self::SEC_TOKEN_NAME] = $this->securityToken;
+		if ($this->save(array('security_token'))) {
+			setcookie(self::SEC_TOKEN_NAME, $this->security_token, time() + Registry::getInstance()->cookiesLifetime, '/');
+			$_COOKIE[self::SEC_TOKEN_NAME] = $this->security_token;
 			return TRUE;
 		} else {
 			return FALSE;
@@ -325,7 +297,7 @@ class User extends ObjectModel
 	 */
 	public function checkSecurityToken($token)
 	{
-		if ($this->securityToken == $token) {
+		if ($this->security_token == $token) {
 			return TRUE;
 		} else {
 			return FALSE;
@@ -337,7 +309,7 @@ class User extends ObjectModel
 	 * @param string $password
 	 * @return string
 	 */
-	public function generatePswdHash($password)
+	public function generatePasswordHash($password)
 	{
 		return md5($password);
 	}
@@ -350,14 +322,14 @@ class User extends ObjectModel
 	public function generatePassword($length)
 	{
 		list($usec, $sec) = explode(' ', microtime());
-		$rand_ofset = (float)$sec + ((float)$usec * 100000);
-		srand($rand_ofset);
+		$rand_offset = (float)$sec + ((float)$usec * 100000);
+		srand($rand_offset);
 
-		$alfa = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM";
-		$len_alfa = strlen($alfa);
+		$alphabet = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM";
+		$len_alphabet = strlen($alphabet);
 		$token = "";
 		for ($i = 0; $i < $length; $i++) {
-			$token .= $alfa[rand(0, $len_alfa)];
+			$token .= $alphabet[rand(0, $len_alphabet)];
 		}
 		return $token;
 	}
@@ -369,21 +341,7 @@ class User extends ObjectModel
 	 */
 	public function checkPass($pass)
 	{
-		if ($this->generatePswdHash($pass) == $this->password) {
-			return TRUE;
-		} else {
-			return FALSE;
-		}
-	}
-
-	/**
-	 * check whatever user has privilege by id
-	 * @param int $privilegeID
-	 * @return boolean
-	 */
-	public function hasPrivilege($privilegeID)
-	{
-		if (in_array($privilegeID, $this->privileges)) {
+		if ($this->generatePasswordHash($pass) == $this->password) {
 			return TRUE;
 		} else {
 			return FALSE;

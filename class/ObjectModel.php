@@ -61,10 +61,10 @@ abstract class ObjectModel
 	 */
 	protected $__fieldDefinitions = array(
 		'id' => array(
-			self::FP_TYPE => self::F_TYPE_INT,
-			self::FP_SIZE => 64,
+			self::FP_TYPE      => self::F_TYPE_INT,
+			self::FP_SIZE      => 10,
 			self::FP_VALIDATOR => 'isValidObjectId',
-			self::FP_REQUIRED => TRUE
+			self::FP_REQUIRED  => TRUE
 		)
 	);
 
@@ -73,13 +73,19 @@ abstract class ObjectModel
 	 * if $id given - tries to load related entry from DB
 	 * @param mixed $id
 	 */
-	public function __construct($id = NULL)
+	public function __construct($id = NULL, $params = NULL)
 	{
+		$this->__dbTable = __DBPREFIX__ . $this->__dbTable;
 		//retrieve list of field names defined as db-related
 		$this->__dbFields = array_keys($this->__fieldDefinitions);
 		//load data if exists
 		if ($this->onConstructCheck($id)) {
 			$this->load($id);
+		} elseif (is_array($params) && !empty($params)) {
+			$query = new DbQuery();
+			$query->select($this->__dbFields)->from($this->__dbTable)->limit(1);
+			$query->where($params);
+			$this->load(NULL, $query);
 		}
 	}
 
@@ -119,31 +125,6 @@ abstract class ObjectModel
 		return $this->__fieldDefinitions;
 	}
 
-
-
-	/**
-	 * use this if you want to properly load object
-	 * which has protected or private db-related properties
-	 * @param string $id
-	 * @return ObjectModel
-	 */
-	public static function protectedInstanceLoad($id = NULL)
-	{
-		//create a blank instance of class to get access to properties
-		$propertyStack = new static();
-		//perform ID param check
-		if ($propertyStack->onConstructCheck($id)) {
-			$res = Db::select()->from($propertyStack->__dbTable)->where(array($propertyStack->identifier => $id))->limit(1)->execute();
-			$instance = $res->fetchObject(get_called_class());
-			if ($instance instanceof static) {
-				$instance->__isLoadedObject = TRUE;
-				$instance->unpackFields();
-				return $instance;
-			}
-		}
-		return new static();
-	}
-
 	/**
 	 * check performed on object construction to prevent search with wrong ID values
 	 * @param mixed $id
@@ -162,17 +143,18 @@ abstract class ObjectModel
 	/**
 	 * load procedure performed on construct
 	 * @param mixed $id
+	 * @param null|DbQuery $query
 	 */
 	protected function load($id = NULL, DbQuery $query = NULL)
 	{
-		if(empty($query)) {
+		if (empty($query)) {
 			$query = Db::select($this->__dbFields)->from($this->__dbTable)->where(array($this->identifier => $id))->limit(1);
 		}
 		$query->execute();
 		$data = $query->fetchArray();
-		if (is_array($data) && count($data)>=count($this->__dbFields)) {
-			foreach($data as $field => $value){
-				$this->{$field}=$value;
+		if (is_array($data) && count($data) >= count($this->__dbFields)) {
+			foreach ($data as $field => $value) {
+				$this->{$field} = $value;
 			}
 			//if ok set object as loaded and restore fields structure
 			$this->__isLoadedObject = TRUE;
@@ -410,7 +392,7 @@ abstract class ObjectModel
 						$this->{$field} = unserialize($this->{$field});
 						break;
 					case self::F_TYPE_BOOL:
-						$this->{$field} = (bool) $this->{$field};
+						$this->{$field} = (bool)$this->{$field};
 						break;
 					default:
 						break;

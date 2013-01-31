@@ -1,11 +1,10 @@
 <?php
-
+define('__DBPREFIX__', 'af_');
+define('SYSTEM_ROOT', dirname(__FILE__));
 require_once 'class/Autoloader.php';
 
-define("__DBPREFIX__", "af_");
-
 $system_config = array(
-	'rootDirectory' => dirname(__FILE__),
+	'rootDirectory' => SYSTEM_ROOT,
 	// string - defines server address
 	'dbServer' => 'mmvc.ops',
 	// string - defines used db driver (PDO)
@@ -20,14 +19,12 @@ $system_config = array(
 	'dbCharset' => 'utf8',
 	// string - defines used charset for HTML
 	'siteEncoding' => 'utf-8',
-	// string - defines used DOCTYPE
-	'htmlDoctype' => 'html5',
 	// bool - defines access_control enabled on main page or not
 	'main_access_restricted' => FALSE,
 	//debug_display
 	'showDebug' => TRUE,
 	// bool - defines whatever debug info (post, get, session, cookie arrays print_r()) must be shown or not
-	'showEnveronmentDebug' => TRUE,
+	'showEnvironmentDebug' => TRUE,
 	// bool - defines whatever debug var_dump() function executed on response data
 	'showResponseVardump' => FALSE,
 	// int - define a lifetime of cookies in seconds

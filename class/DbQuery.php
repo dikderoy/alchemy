@@ -350,7 +350,7 @@ class DbQuery
 	 * @param array $args data to pass as where section parameters
 	 * @return DbQuery
 	 */
-	public function whereComplex($condition, $args = array())
+	public function whereComplex($condition, array $args = NULL)
 	{
 		$this->where = $condition;
 		$this->whereValueSet = $args;
@@ -581,7 +581,6 @@ class DbQuery
 	{
 		//set default values to registers
 		$this->readyValueSet = array();
-		$this->whereValueSet = array();
 		//enclose cols and table names in back-quotes
 		$this->what = array_map(array('Db', 'backquoEnclose'), $this->what);
 		try {
@@ -650,7 +649,11 @@ class DbQuery
 			}
 			return $this;
 		} catch (PDOException $exc) {
-			throw new DbException("DB :: " . __METHOD__ . " - Failed to prepare query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
+			throw new DbException(
+				"Db::" . __METHOD__ . " - Failed to prepare query: {$this->query}\r" . $exc->getMessage(),
+				$exc->getCode(),
+				$exc
+			);
 		}
 	}
 
@@ -680,7 +683,12 @@ class DbQuery
 				$this->executeCount++;
 			}
 		} catch (PDOException $exc) {
-			throw new DbException("DB :: " . __METHOD__ . " - Failed to execute query :: {$this->query}\r" . $exc->getMessage(), $exc->getCode(), $exc);
+			throw new DbException(
+				"Db::" . __METHOD__ . " - Failed to execute query: {$this->query}\r" .
+					'parameters(' . implode(',', $valueSet) . ")\r" . $exc->getMessage(),
+				$exc->getCode(),
+				$exc
+			);
 		}
 		return $this;
 	}

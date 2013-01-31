@@ -1,7 +1,5 @@
 <?php
 
-define('SYSTEM_ROOT', dirname(dirname(__FILE__)));
-
 /**
  * Autoloader is a collection of functions used ONLY as class loaders by spl_autoload()
  *

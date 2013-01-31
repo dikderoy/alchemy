@@ -24,9 +24,11 @@ class UniversalObjectModelEditor
 	 */
 	function __construct($className)
 	{
+		/*
 		if (!Autoloader::autoloadModel($className)) {
 			throw new ControllerActionError('ObjectModel you requested does not exists');
 		}
+		*/
 		$this->infoObject = new $className();
 		if ($this->infoObject instanceof ObjectModel) {
 			$this->className = get_class($this->infoObject);
@@ -131,7 +133,7 @@ class UniversalObjectModelEditor
 		}
 
 		foreach ($fields as $field => $value) {
-			$setter = 'set'.$field;
+			$setter = 'set'.str_replace('_','',$field);
 			if(method_exists($o, $setter)) {
 				$o->{$setter}($value);
 			} else {
