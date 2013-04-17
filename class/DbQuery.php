@@ -194,7 +194,7 @@ class DbQuery
 		if ($this->isExecuted()) {
 			$this->statement->closeCursor();
 		}
-		Db::getInstance()->reportQueryes($this);
+		Db::getInstance()->reportQueries($this);
 	}
 
 	/**
@@ -460,9 +460,8 @@ class DbQuery
 		if (is_array($this->values[0])) {
 			foreach ($this->values as $row) {
 				//make keys like ":key"
-				$vals = array();
-				array_walk($row, array('Db', 'attachKeyColon'), array(&$vals));
-				array_push($this->readyValueSet, $vals);
+				$preparedRow = Db::arrayAttachKeyColon($row);
+				array_push($this->readyValueSet, $preparedRow);
 			}
 			$values = implode(',', array_keys($this->readyValueSet[0]));
 		} else {
@@ -487,7 +486,7 @@ class DbQuery
 			array_push($set, "`$key` = :$key");
 		}
 		//values array (make indexes like ":key")
-		array_walk($this->values, array('Db', 'attachKeyColon'), array(&$this->readyValueSet));
+		$this->readyValueSet = Db::arrayAttachKeyColon($this->values);
 		//where clause
 		$cond = $this->__where();
 		$limit = $this->__limit();

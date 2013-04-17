@@ -13,7 +13,7 @@
  * @uses DbQuery support query management class
  * @uses DbException exception class
  */
-class Db extends SingletoneModel implements ISingletone
+class Db extends SingletoneModel
 {
 
 	const Q_TYPE_FREEFORM = 1;
@@ -84,13 +84,15 @@ class Db extends SingletoneModel implements ISingletone
 
 	/**
 	 * sets parameters for connection to a server
-	 * @param array $config - required configuration data
+	 * @param mixed $config - required configuration data
 	 * @param array $options - additional options for PDO object
 	 * @return boolean
 	 */
 	public function setDbParameters($config, $options = array())
 	{
-		if (!($config instanceof Registry)) {
+		if (is_array($config) || is_object($config)) {
+			$config = (object)$config;
+		} else {
 			return FALSE;
 		}
 
@@ -167,7 +169,7 @@ class Db extends SingletoneModel implements ISingletone
 	 * return queries counter value
 	 * @return int
 	 */
-	public function getQueryesTotal()
+	public function getQueriesTotal()
 	{
 		unset($this->lastQuery);
 		return $this->queriesTotal;
@@ -177,7 +179,7 @@ class Db extends SingletoneModel implements ISingletone
 	 * add queries reported by $o to query counter value
 	 * @param DbQuery $o
 	 */
-	public function reportQueryes(DbQuery $o)
+	public function reportQueries(DbQuery $o)
 	{
 		$this->queriesTotal += $o->getExecuteCount();
 	}
@@ -188,7 +190,7 @@ class Db extends SingletoneModel implements ISingletone
 	 */
 	public function __toString()
 	{
-		return "queryes total :: {$this->queriesTotal}";
+		return "queries total :: {$this->queriesTotal}";
 	}
 
 	/**
@@ -322,15 +324,17 @@ class Db extends SingletoneModel implements ISingletone
 	}
 
 	/**
-	 * assigns by reference in array a string $elem
-	 * at index $key prepended by semicolon " : "
-	 * @param mixed $value
-	 * @param string $key
-	 * @param array $return
+	 * accepts array, attaches colon(:) to its key values and returns it
+	 * @param array $array
+	 * @return array
 	 */
-	public static function attachKeyColon($value, $key, $return)
+	public static function arrayAttachKeyColon($array)
 	{
-		$return[0][":$key"] = $value;
+		$output = array();
+		foreach ($array as $key => $value) {
+			$output[":{$key}"] = $value;
+		}
+		return $output;
 	}
 
 }

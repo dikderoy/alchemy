@@ -232,7 +232,7 @@ final class Registry extends Structure
 			$res = array(
 				'executionTime'   => microtime(TRUE) - $this->executionTime,
 				'memoryPeakUsage' => memory_get_peak_usage(TRUE),
-				'dbQueriesTotal'  => Db::getInstance()->getQueryesTotal()
+				'dbQueriesTotal'  => Db::getInstance()->getQueriesTotal()
 			);
 
 			return $res;

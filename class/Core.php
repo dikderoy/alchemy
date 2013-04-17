@@ -7,7 +7,7 @@
  * @version 1.0.0
  * @author Deroy aka Roman Bulgakov
  */
-class Core extends SingletoneModel implements ISingletone
+class Core extends SingletoneModel
 {
 
 	/**
